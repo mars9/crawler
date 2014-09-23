@@ -1,0 +1,32 @@
+package crawlerpb;
+
+message Crawler {
+	required string domain        = 1;
+	optional string user_agent    = 2;
+	optional string robots_agent  = 3;
+	repeated string seeds         = 4;
+	repeated string accept        = 5;
+	repeated string reject        = 6;
+	optional uint32 max_visit     = 7;
+	optional int64 time_to_live   = 8;
+	optional int64 delay          = 9;
+}
+
+message Record {
+	required string URL           = 1;
+	required bytes key            = 2;
+	optional string title         = 3;
+	optional string language      = 4;
+	optional string description   = 5;
+	optional string author        = 6;
+	optional string generator     = 7;
+	optional string copyright     = 8;
+	repeated string keywords      = 9;
+	repeated string robots        = 10;
+	repeated string external      = 11;
+	repeated string links         = 12;
+	repeated string scripts       = 13;
+	optional bytes body           = 14;
+	optional bytes checksum       = 15;
+	optional bytes data           = 16;
+}
