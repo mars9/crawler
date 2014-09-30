@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"net/url"
-	"regexp"
 	"strings"
 
 	"code.google.com/p/go.net/html"
@@ -22,7 +21,7 @@ func normalize(domain *url.URL, link string) (*url.URL, error) {
 	return url.Parse(link) // verify, normalize url
 }
 
-func parseHTML(node *html.Node, c Crawler, prefix *regexp.Regexp, push chan<- *url.URL) error {
+func parseHTML(node *html.Node, c Crawler, push chan<- *url.URL) error {
 	var err error
 	if node.Type == html.ElementNode && node.Data == "a" {
 		for i := range node.Attr {
@@ -40,7 +39,7 @@ func parseHTML(node *html.Node, c Crawler, prefix *regexp.Regexp, push chan<- *u
 	}
 
 	for n := node.FirstChild; n != nil; n = n.NextSibling {
-		if err = parseHTML(n, c, prefix, push); err != nil {
+		if err = parseHTML(n, c, push); err != nil {
 			return err
 		}
 	}
@@ -62,11 +61,11 @@ func Fetch(url *url.URL, c Crawler, push chan<- *url.URL) error {
 		return err
 	}
 
-	prefix, err := regexp.Compile(`^` + c.Domain().String())
-	if err != nil {
-		return err
-	}
-	if err = parseHTML(node, c, prefix, push); err != nil {
+	//prefix, err := regexp.Compile(`^` + c.Domain().String())
+	//if err != nil {
+	//	return err
+	//}
+	if err = parseHTML(node, c, push); err != nil {
 		return err
 	}
 	if c.Parse != nil {
