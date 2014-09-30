@@ -1,6 +1,8 @@
 package crawler
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net/url"
 	"strings"
 
@@ -56,7 +58,12 @@ func Fetch(url *url.URL, c Crawler, push chan<- *url.URL) error {
 	}
 	defer body.Close()
 
-	node, err := html.Parse(body)
+	data, err := ioutil.ReadAll(body)
+	if err != nil {
+		return err
+	}
+
+	node, err := html.Parse(bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
@@ -69,7 +76,7 @@ func Fetch(url *url.URL, c Crawler, push chan<- *url.URL) error {
 		return err
 	}
 	if c.Parse != nil {
-		return c.Parse(url, node)
+		return c.Parse(url, data)
 	}
 	return err
 }

@@ -33,6 +33,9 @@ type Bucket interface {
 
 	// Bucket returns the name and unique identifier for this Bucket.
 	Bucket() (name, uuid []byte)
+
+	// List returns all collected records.
+	List() (rec <-chan *pb.Record, err error)
 }
 
 type Store struct {
@@ -290,4 +293,35 @@ func (s *boltStore) Delete(key []byte) error {
 		return err
 	}
 	return txn.Commit()
+}
+
+func (s *boltStore) List() (<-chan *pb.Record, error) {
+	txn, err := s.db.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+
+	bucket, err := s.findRoot(txn)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan *pb.Record)
+	go func(ch chan<- *pb.Record, txn *bolt.Tx) {
+		defer func() {
+			txn.Rollback()
+			close(ch)
+		}()
+		c := bucket.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			rec := &pb.Record{}
+			if err = proto.Unmarshal(v, rec); err != nil {
+				panic(err)
+			}
+			ch <- rec
+		}
+	}(ch, txn)
+
+	return ch, nil
 }

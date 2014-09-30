@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"code.google.com/p/go.net/context"
-	"code.google.com/p/go.net/html"
 	"code.google.com/p/goprotobuf/proto"
 	pb "github.com/mars9/crawler/crawlerpb"
 )
@@ -126,7 +125,7 @@ func TestCrawlerIntegration(t *testing.T) {
 	}
 
 	got := make(map[string]bool)
-	c, err := New(&args, func(url *url.URL, n *html.Node) error {
+	c, err := New(&args, func(url *url.URL, body []byte) error {
 		got[url.String()] = true
 		return nil
 	})
@@ -169,7 +168,7 @@ func TestCrawlerMaxVisit(t *testing.T) {
 	}
 
 	got := make(map[string]bool)
-	c, err := New(&args, func(url *url.URL, n *html.Node) error {
+	c, err := New(&args, func(url *url.URL, body []byte) error {
 		got[url.String()] = true
 		return nil
 	})

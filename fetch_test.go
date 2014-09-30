@@ -16,7 +16,7 @@ type parseTestCrawler struct {
 }
 
 func (p parseTestCrawler) Fetch(url *url.URL) (io.ReadCloser, error) { return nil, nil }
-func (p parseTestCrawler) Parse(url *url.URL, n *html.Node) error    { return nil }
+func (p parseTestCrawler) Parse(url *url.URL, body []byte) error     { return nil }
 func (p parseTestCrawler) Seeds() []*url.URL                         { return nil }
 func (p parseTestCrawler) Domain() *url.URL                          { return p.domain }
 func (p parseTestCrawler) MaxVisit() uint32                          { return 0 }

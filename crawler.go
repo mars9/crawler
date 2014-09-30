@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"code.google.com/p/go.net/context"
-	"code.google.com/p/go.net/html"
 )
 
 // Default options.
@@ -28,7 +27,7 @@ type Crawler interface {
 
 	// Parse is called when visiting a page. Parse receives a http response
 	// body reader and should return an error, if any. Can be nil.
-	Parse(url *url.URL, node *html.Node) (err error)
+	Parse(url *url.URL, body []byte) (err error)
 
 	// Domain returns the host to crawl.
 	Domain() (domain *url.URL)

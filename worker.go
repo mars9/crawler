@@ -9,15 +9,13 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"code.google.com/p/go.net/html"
 	"code.google.com/p/goprotobuf/proto"
 	pb "github.com/mars9/crawler/crawlerpb"
 	"github.com/mars9/crawler/robotstxt"
 )
 
 // ParseFunc implements Crawler Parse.
-type ParseFunc func(url *url.URL, node *html.Node) (err error)
+type ParseFunc func(url *url.URL, body []byte) (err error)
 
 type userAgent interface {
 	Test(path string) (ok bool)
@@ -157,8 +155,8 @@ func (c *defCrawler) Fetch(url *url.URL) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (c *defCrawler) Parse(url *url.URL, node *html.Node) error {
-	return c.parseFunc(url, node)
+func (c *defCrawler) Parse(url *url.URL, body []byte) error {
+	return c.parseFunc(url, body)
 }
 
 func (c *defCrawler) Accept(url *url.URL) bool {
