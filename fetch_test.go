@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"net/url"
-	"regexp"
 	"testing"
 	"time"
 
@@ -44,12 +43,7 @@ func TestParseHTML(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		prefix, err := regexp.Compile(`^` + c.Domain().String())
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if err := parseHTML(node, c, prefix, pushc); err != nil {
+		if err := parseHTML(node, c, pushc); err != nil {
 			t.Fatalf("parsing html test data: %v", err)
 		}
 	}()

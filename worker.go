@@ -168,11 +168,11 @@ func (c *defCrawler) Accept(url *url.URL) bool {
 		}
 	}
 	for i := range c.accept {
-		if !c.accept[i].MatchString(url.String()) {
-			return false
+		if c.accept[i].MatchString(url.String()) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (c *defCrawler) MaxVisit() uint32     { return c.maxVisit }
