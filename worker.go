@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"code.google.com/p/goprotobuf/proto"
 	pb "github.com/mars9/crawler/crawlerpb"
 	"github.com/mars9/crawler/robotstxt"
