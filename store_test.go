@@ -94,7 +94,7 @@ func TestStore(t *testing.T) {
 		}
 	}
 
-	alistc, err := store.ListAll()
+	alistc, err := store.listAll()
 	if err != nil {
 		t.Fatalf("list all: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestStore(t *testing.T) {
 	}
 	assert(t, "crawlers", names, got)
 
-	listc, err := store.List(names[0])
+	listc, err := store.list(names[0])
 	if err != nil {
 		t.Fatalf("list %s: %v", names[0], err)
 	}

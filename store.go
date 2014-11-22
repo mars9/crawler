@@ -38,10 +38,12 @@ type Bucket interface {
 	List() (rec <-chan *pb.Record, err error)
 }
 
+// Store implements a boltdb backed record store.
 type Store struct {
 	db *bolt.DB
 }
 
+// NewStore returns a boltdb backed record store.
 func NewStore(dbpath string, limit int64) (*Store, error) {
 	db, err := bolt.Open(dbpath, 0600, nil)
 	if err != nil {
@@ -74,7 +76,8 @@ func (s *Store) Open(name, uuid []byte) (Bucket, error) {
 	return openBucket(s.db, name, uuid)
 }
 
-func (s *Store) List(name []byte) (<-chan []byte, error) {
+// TODO
+func (s *Store) list(name []byte) (<-chan []byte, error) {
 	txn, err := s.db.Begin(false)
 	if err != nil {
 		return nil, err
@@ -101,7 +104,8 @@ func (s *Store) List(name []byte) (<-chan []byte, error) {
 	return ch, nil
 }
 
-func (s *Store) ListAll() (<-chan []byte, error) {
+// TODO
+func (s *Store) listAll() (<-chan []byte, error) {
 	txn, err := s.db.Begin(false)
 	if err != nil {
 		return nil, err
