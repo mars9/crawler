@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"code.google.com/p/go.net/context"
+	"golang.org/x/net/context"
 )
 
 // Default options.
@@ -87,7 +87,7 @@ func (w *worker) Start(ctx context.Context, push chan<- *url.URL) {
 	}
 }
 
-// Start starts a new crawl. Crawlers defines the number concurrentry
+// Start starts a new crawl. Crawlers defines the number concurrently
 // working crawlers.
 func Start(ctx context.Context, c Crawler, crawlers uint8) {
 	canceler := make([]context.CancelFunc, crawlers)

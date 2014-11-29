@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"code.google.com/p/go.net/html"
+	"golang.org/x/net/html"
 )
 
 func normalize(domain *url.URL, link string) (*url.URL, error) {

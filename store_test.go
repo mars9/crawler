@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"code.google.com/p/goprotobuf/proto"
 	"github.com/boltdb/bolt"
+	"github.com/golang/protobuf/proto"
 	pb "github.com/mars9/crawler/crawlerpb"
 )
 
@@ -94,7 +94,7 @@ func TestStore(t *testing.T) {
 		}
 	}
 
-	alistc, err := store.listAll()
+	alistc, err := store.ListAll()
 	if err != nil {
 		t.Fatalf("list all: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestStore(t *testing.T) {
 	}
 	assert(t, "crawlers", names, got)
 
-	listc, err := store.list(names[0])
+	listc, err := store.List(names[0])
 	if err != nil {
 		t.Fatalf("list %s: %v", names[0], err)
 	}

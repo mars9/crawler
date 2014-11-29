@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	pb "github.com/mars9/crawler/crawlerpb"
 	"github.com/mars9/crawler/robotstxt"
 )

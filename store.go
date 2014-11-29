@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
-	"code.google.com/p/goprotobuf/proto"
 	"github.com/boltdb/bolt"
+	"github.com/golang/protobuf/proto"
 	pb "github.com/mars9/crawler/crawlerpb"
 )
 
@@ -76,8 +76,7 @@ func (s *Store) Open(name, uuid []byte) (Bucket, error) {
 	return openBucket(s.db, name, uuid)
 }
 
-// TODO
-func (s *Store) list(name []byte) (<-chan []byte, error) {
+func (s *Store) List(name []byte) (<-chan []byte, error) {
 	txn, err := s.db.Begin(false)
 	if err != nil {
 		return nil, err
@@ -104,8 +103,7 @@ func (s *Store) list(name []byte) (<-chan []byte, error) {
 	return ch, nil
 }
 
-// TODO
-func (s *Store) listAll() (<-chan []byte, error) {
+func (s *Store) ListAll() (<-chan []byte, error) {
 	txn, err := s.db.Begin(false)
 	if err != nil {
 		return nil, err

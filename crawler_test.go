@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"code.google.com/p/go.net/context"
-	"code.google.com/p/goprotobuf/proto"
+	"github.com/golang/protobuf/proto"
 	pb "github.com/mars9/crawler/crawlerpb"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 	<a href="%s/page%.4d">page%.4d</a>
 
 	<a href="http://example.com">example.com</a>
-	<a href="http://golang.com">golang</a>
+	<a href="http://golang.org">golang</a>
 	<a href="http://haskell.org">haskell</a>
 </body>
 </html>
