@@ -89,7 +89,7 @@ func (w *worker) Start(ctx context.Context, push chan<- *url.URL) {
 
 // Start starts a new crawl. Crawlers defines the number concurrently
 // working crawlers.
-func Start(ctx context.Context, c Crawler, crawlers uint8) {
+func Start(ctx context.Context, crawler Crawler, crawlers uint8) {
 	canceler := make([]context.CancelFunc, crawlers)
 	workerc := make(chan chan *url.URL, crawlers)
 	workers := make([]*worker, crawlers)
@@ -100,7 +100,7 @@ func Start(ctx context.Context, c Crawler, crawlers uint8) {
 	go Queue(pushc, popc)
 	defer close(pushc)
 	go func() {
-		for _, seed := range c.Seeds() {
+		for _, seed := range crawler.Seeds() {
 			pushc <- seed
 		}
 	}()
@@ -112,7 +112,7 @@ func Start(ctx context.Context, c Crawler, crawlers uint8) {
 			uid:     i,
 			wg:      wg,
 			client:  &http.Client{},
-			crawler: c,
+			crawler: crawler,
 		}
 
 		context, cancel := context.WithCancel(ctx)
@@ -121,13 +121,13 @@ func Start(ctx context.Context, c Crawler, crawlers uint8) {
 		go workers[i].Start(context, pushc)
 	}
 
-	timer := time.NewTimer(c.TTL())
+	timer := time.NewTimer(crawler.TTL())
 	donec := make(chan struct{}, 1)
 	go func(popc <-chan *url.URL) {
 		var visited uint32
 		for url := range popc {
 			visited++
-			if c.MaxVisit() > 0 && c.MaxVisit() < visited {
+			if crawler.MaxVisit() > 0 && crawler.MaxVisit() < visited {
 				donec <- struct{}{}
 				return
 			}
@@ -135,7 +135,7 @@ func Start(ctx context.Context, c Crawler, crawlers uint8) {
 			workc := <-workerc
 			workc <- url
 
-			timer.Reset(c.TTL())
+			timer.Reset(crawler.TTL())
 		}
 	}(popc)
 
