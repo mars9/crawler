@@ -8,7 +8,6 @@ package robotstxt
 // http://en.wikipedia.org/wiki/Robots.txt
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -85,7 +84,7 @@ func (p *parser) parseAll() (groups []*Group, sitemaps []string, errs []error) {
 			case lDisallow:
 				// Error if no current group
 				if curGroup == nil {
-					errs = append(errs, errors.New(fmt.Sprintf("Disallow before User-agent at token #%d.", p.pos)))
+					errs = append(errs, fmt.Errorf("Disallow before User-agent at token #%d.", p.pos))
 				} else {
 					isEmptyGroup = false
 					if li.vr != nil {
@@ -98,7 +97,7 @@ func (p *parser) parseAll() (groups []*Group, sitemaps []string, errs []error) {
 			case lAllow:
 				// Error if no current group
 				if curGroup == nil {
-					errs = append(errs, errors.New(fmt.Sprintf("Allow before User-agent at token #%d.", p.pos)))
+					errs = append(errs, fmt.Errorf("Allow before User-agent at token #%d.", p.pos))
 				} else {
 					isEmptyGroup = false
 					if li.vr != nil {
@@ -113,7 +112,7 @@ func (p *parser) parseAll() (groups []*Group, sitemaps []string, errs []error) {
 
 			case lCrawlDelay:
 				if curGroup == nil {
-					errs = append(errs, errors.New(fmt.Sprintf("Crawl-delay before User-agent at token #%d.", p.pos)))
+					errs = append(errs, fmt.Errorf("Crawl-delay before User-agent at token #%d.", p.pos))
 				} else {
 					isEmptyGroup = false
 					curGroup.CrawlDelay = time.Duration(li.vf * float64(time.Second))
@@ -175,15 +174,13 @@ func (p *parser) parseLine() (li *lineInfo, err error) {
 				t2 = regexp.QuoteMeta(t2)
 				t2 = strings.Replace(t2, `\*`, `.*`, -1)
 				t2 = strings.Replace(t2, `\$`, `$`, -1)
-				if r, e := regexp.Compile(t2); e != nil {
+				r, e := regexp.Compile(t2)
+				if e != nil {
 					return nil, e
-				} else {
-					return &lineInfo{t: t, k: t1, vr: r}, nil
 				}
-			} else {
-				// Simple string path
-				return &lineInfo{t: t, k: t1, vs: t2}, nil
+				return &lineInfo{t: t, k: t1, vr: r}, nil
 			}
+			return &lineInfo{t: t, k: t1, vs: t2}, nil
 		}
 		return &lineInfo{t: lIgnore}, nil
 	}
@@ -223,11 +220,11 @@ func (p *parser) parseLine() (li *lineInfo, err error) {
 		// Several major crawlers support a Crawl-delay parameter, set to the
 		// number of seconds to wait between successive requests to the same server.
 		p.popToken()
-		if cd, e := strconv.ParseFloat(t2, 64); e != nil {
+		cd, e := strconv.ParseFloat(t2, 64)
+		if e != nil {
 			return nil, e
-		} else {
-			return &lineInfo{t: lCrawlDelay, k: t1, vf: cd}, nil
 		}
+		return &lineInfo{t: lCrawlDelay, k: t1, vf: cd}, nil
 	}
 
 	// Consume t2 token
