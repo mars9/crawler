@@ -26,7 +26,7 @@ type Crawler interface {
 	Fetch(url *url.URL) (rc io.ReadCloser, err error)
 
 	// Parse is called when visiting a page. Parse receives a http response
-	// body reader and should return an error, if any. Can be nil.
+	// body and should return an error, if any. Can be nil.
 	Parse(url *url.URL, body []byte) (err error)
 
 	// Domain returns the host to crawl.

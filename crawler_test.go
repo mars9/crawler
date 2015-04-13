@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	pb "github.com/mars9/crawler/crawlerpb"
 	"golang.org/x/net/context"
 )
 
@@ -102,8 +100,8 @@ func TestCrawlerIntegration(t *testing.T) {
 	defer server.Close()
 
 	initDirectory(t, server.URL, testDataDir)
-	args := pb.Crawler{
-		Domain: proto.String(server.URL),
+	config := Config{
+		Domain: server.URL,
 		Seeds: []string{
 			server.URL + "/index0000",
 			server.URL + "/index0001",
@@ -112,8 +110,8 @@ func TestCrawlerIntegration(t *testing.T) {
 		},
 		Accept:     []string{server.URL},
 		Reject:     []string{},
-		TimeToLive: proto.Int64(int64(time.Millisecond * 50)),
-		Delay:      proto.Int64(0),
+		TimeToLive: time.Millisecond * 50,
+		Delay:      0,
 	}
 
 	want := make(map[string]bool)
@@ -125,7 +123,7 @@ func TestCrawlerIntegration(t *testing.T) {
 	}
 
 	got := make(map[string]bool)
-	c, err := New(&args, func(url *url.URL, body []byte) error {
+	c, err := New(config, func(url *url.URL, body []byte) error {
 		got[url.String()] = true
 		return nil
 	})
@@ -147,8 +145,8 @@ func TestCrawlerMaxVisit(t *testing.T) {
 	defer server.Close()
 
 	initDirectory(t, server.URL, testDataDir)
-	args := pb.Crawler{
-		Domain: proto.String(server.URL),
+	config := Config{
+		Domain: server.URL,
 		Seeds: []string{
 			server.URL + "/index0000",
 			server.URL + "/index0001",
@@ -156,10 +154,10 @@ func TestCrawlerMaxVisit(t *testing.T) {
 			server.URL + "/index0003",
 		},
 		Accept:     []string{server.URL},
-		MaxVisit:   proto.Uint32(3),
+		MaxVisit:   3,
 		Reject:     []string{},
-		TimeToLive: proto.Int64(int64(time.Millisecond * 50)),
-		Delay:      proto.Int64(0),
+		TimeToLive: time.Millisecond * 50,
+		Delay:      0,
 	}
 
 	want := make(map[string]bool)
@@ -168,7 +166,7 @@ func TestCrawlerMaxVisit(t *testing.T) {
 	}
 
 	got := make(map[string]bool)
-	c, err := New(&args, func(url *url.URL, body []byte) error {
+	c, err := New(config, func(url *url.URL, body []byte) error {
 		got[url.String()] = true
 		return nil
 	})

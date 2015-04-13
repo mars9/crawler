@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	pb "github.com/mars9/crawler/crawlerpb"
 	"github.com/mars9/crawler/robotstxt"
 )
 
@@ -51,16 +49,29 @@ func fetchUserAgent(domain *url.URL, robotsAgent string) userAgent {
 	return robots.FindGroup(DefaultUserAgent)
 }
 
+// Config defines the default crawler configuration.
+type Config struct {
+	Domain      string        `json:"domain"`
+	UserAgent   string        `json:"user_agent"`
+	RobotsAgent string        `json:"robots_agent""`
+	Seeds       []string      `json:"seeds"`
+	Accept      []string      `json:"accept"`
+	Reject      []string      `json:"reject"`
+	MaxVisit    uint32        `json:"max_visit"`
+	TimeToLive  time.Duration `json:"time_to_live"`
+	Delay       time.Duration `json:"delay"`
+}
+
 // New returns a default Crawler implementation.
-func New(args *pb.Crawler, fn ParseFunc) (Crawler, error) {
-	domain, err := url.Parse(args.GetDomain())
+func New(config Config, fn ParseFunc) (Crawler, error) {
+	domain, err := url.Parse(config.Domain)
 	if err != nil {
 		return nil, err
 	}
 
-	seeds, n := make([]*url.URL, len(args.Seeds)), 0
-	for i := range args.Seeds {
-		seeds[n], err = url.Parse(args.Seeds[i])
+	seeds, n := make([]*url.URL, len(config.Seeds)), 0
+	for i := range config.Seeds {
+		seeds[n], err = url.Parse(config.Seeds[i])
 		if err != nil {
 			continue
 		}
@@ -68,42 +79,42 @@ func New(args *pb.Crawler, fn ParseFunc) (Crawler, error) {
 	}
 	seeds = seeds[:n]
 
-	accept := make([]*regexp.Regexp, len(args.Accept))
-	reject := make([]*regexp.Regexp, len(args.Reject))
-	for i := range args.Accept {
-		accept[i], err = regexp.Compile(args.Accept[i])
+	accept := make([]*regexp.Regexp, len(config.Accept))
+	reject := make([]*regexp.Regexp, len(config.Reject))
+	for i := range config.Accept {
+		accept[i], err = regexp.Compile(config.Accept[i])
 		if err != nil {
 			return nil, err
 		}
 	}
-	for i := range args.Reject {
-		reject[i], err = regexp.Compile(args.Reject[i])
+	for i := range config.Reject {
+		reject[i], err = regexp.Compile(config.Reject[i])
 		if err != nil {
 			return nil, err
 		}
 	}
-	if args.GetTimeToLive() == 0 {
-		args.TimeToLive = proto.Int64(int64(DefaultTimeToLive))
+	if config.TimeToLive == 0 {
+		config.TimeToLive = DefaultTimeToLive
 	}
-	if args.GetUserAgent() == "" {
-		args.UserAgent = proto.String(DefaultUserAgent)
+	if config.UserAgent == "" {
+		config.UserAgent = DefaultUserAgent
 	}
-	if args.GetRobotsAgent() == "" {
-		args.RobotsAgent = proto.String(DefaultRobotsUserAgent)
+	if config.RobotsAgent == "" {
+		config.RobotsAgent = DefaultRobotsUserAgent
 	}
 
 	return &defCrawler{
 		domain:    domain,
-		userAgent: args.GetUserAgent(),
+		userAgent: config.UserAgent,
 		seeds:     seeds,
 		accept:    accept,
 		reject:    reject,
-		ttl:       time.Duration(args.GetTimeToLive()),
-		delay:     time.Duration(args.GetDelay()),
-		maxVisit:  args.GetMaxVisit(),
+		ttl:       config.TimeToLive,
+		delay:     config.Delay,
+		maxVisit:  config.MaxVisit,
 		parseFunc: fn,
 		client:    &http.Client{Transport: &http.Transport{}},
-		agent:     fetchUserAgent(domain, args.GetRobotsAgent()),
+		agent:     fetchUserAgent(domain, config.RobotsAgent),
 		visited:   make(map[string]bool),
 	}, nil
 }
