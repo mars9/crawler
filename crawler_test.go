@@ -19,6 +19,7 @@ import (
 
 	pb "github.com/mars9/crawler/crawlerpb"
 	"golang.org/x/net/context"
+	"golang.org/x/net/html"
 )
 
 var (
@@ -130,7 +131,7 @@ func TestCrawlerIntegration(t *testing.T) {
 
 	got := make(map[string]bool)
 	var parseMutex sync.Mutex
-	c, err := New(config, func(url *url.URL, body []byte) error {
+	c, err := New(config, func(url *url.URL, root *html.Node, body []byte) error {
 		parseMutex.Lock()
 		got[url.String()] = true
 		parseMutex.Unlock()
@@ -140,7 +141,7 @@ func TestCrawlerIntegration(t *testing.T) {
 		t.Fatal("default crawler: %v", err)
 	}
 
-	Start(context.Background(), c, 5)
+	Start(context.Background(), c, CrawlWorkers(5))
 
 	assert(t, "urls", want, got)
 }
@@ -176,7 +177,7 @@ func TestCrawlerMaxVisit(t *testing.T) {
 
 	got := make(map[string]bool)
 	var parseMutex sync.Mutex
-	c, err := New(config, func(url *url.URL, body []byte) error {
+	c, err := New(config, func(url *url.URL, root *html.Node, body []byte) error {
 		parseMutex.Lock()
 		got[url.String()] = true
 		parseMutex.Unlock()
@@ -186,7 +187,7 @@ func TestCrawlerMaxVisit(t *testing.T) {
 		t.Fatal("default crawler: %v", err)
 	}
 
-	Start(context.Background(), c, 5)
+	Start(context.Background(), c, CrawlWorkers(5))
 
 	assert(t, "urls", want, got)
 }

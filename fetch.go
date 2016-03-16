@@ -78,5 +78,5 @@ func Fetch(url *url.URL, crawler Crawler, push chan<- *url.URL) error {
 	if err = parseHTML(node, crawler, push); err != nil {
 		return err
 	}
-	return crawler.Parse(url, data)
+	return crawler.Parse(url, node, data)
 }

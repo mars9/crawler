@@ -42,14 +42,49 @@ func (w *worker) Start(ctx context.Context, push chan<- *url.URL) {
 	}
 }
 
+type Options func(*Option)
+
+type Option struct {
+	capacity int
+	worker   int
+}
+
+func newOption(opts ...Options) *Option {
+	o := &Option{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	// TODO: use constants
+	if o.capacity <= 0 {
+		o.capacity = 64
+	}
+	if o.worker <= 0 {
+		o.worker = 8
+	}
+	return o
+}
+
+func CrawlWorkers(num int) Options {
+	return func(opt *Option) {
+		opt.worker = num
+	}
+}
+
+func QueueCapacity(num int) Options {
+	return func(opt *Option) {
+		opt.capacity = num
+	}
+}
+
 // Start starts a new crawl. Crawlers defines the number concurrently
 // working crawlers.
-func Start(ctx context.Context, crawler Crawler, crawlers int) {
-	canceler := make([]context.CancelFunc, crawlers)
-	workerc := make(chan chan *url.URL, crawlers)
-	workers := make([]*worker, crawlers)
-	pushc := make(chan *url.URL, 16)
-	popc := make(chan *url.URL, 16)
+func Start(ctx context.Context, crawler Crawler, opts ...Options) {
+	opt := newOption(opts...)
+	canceler := make([]context.CancelFunc, opt.worker)
+	workerc := make(chan chan *url.URL, opt.worker)
+	workers := make([]*worker, opt.worker)
+	pushc := make(chan *url.URL, opt.capacity)
+	popc := make(chan *url.URL, opt.capacity)
 	wg := &sync.WaitGroup{}
 
 	go Queue(pushc, popc)
@@ -61,7 +96,7 @@ func Start(ctx context.Context, crawler Crawler, crawlers int) {
 		}
 	}()
 
-	for i := 0; i < crawlers; i++ {
+	for i := 0; i < opt.worker; i++ {
 		workers[i] = &worker{
 			workc:   make(chan *url.URL, 1),
 			workerc: workerc,
@@ -70,7 +105,7 @@ func Start(ctx context.Context, crawler Crawler, crawlers int) {
 			c:       crawler,
 		}
 
-		context, cancel := context.WithCancel(ctx)
+		context, cancel := context.WithCancel(context.Background())
 		canceler[i] = cancel
 		wg.Add(1)
 		go workers[i].Start(context, pushc)
@@ -95,15 +130,13 @@ func Start(ctx context.Context, crawler Crawler, crawlers int) {
 	}(popc)
 
 	select {
-	case <-timer.C:
-		for i := range canceler {
-			canceler[i]()
-		}
-	case <-donec:
-		for i := range canceler {
-			canceler[i]()
-		}
 	case <-ctx.Done():
+	case <-timer.C:
+	case <-donec:
 	}
+	for i := range canceler {
+		canceler[i]()
+	}
+
 	wg.Wait()
 }

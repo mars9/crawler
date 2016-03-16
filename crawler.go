@@ -16,6 +16,7 @@ import (
 
 	pb "github.com/mars9/crawler/crawlerpb"
 	"github.com/mars9/crawler/robotstxt"
+	"golang.org/x/net/html"
 )
 
 // Default options.
@@ -32,9 +33,9 @@ type Crawler interface {
 	// and an error if any.
 	Fetch(url *url.URL) (rc io.ReadCloser, err error)
 
-	// Parse is called when visiting a page. Parse receives a http response
-	// body and should return an error, if any.
-	Parse(url *url.URL, body []byte) (err error)
+	// Parse is called when visiting a page. Parse receives a root html Node,
+	// a http response body and should return an error, if any.
+	Parse(url *url.URL, root *html.Node, body []byte) error
 
 	// Domain returns the host to crawl.
 	Domain() (domain *url.URL)
@@ -64,7 +65,7 @@ type Crawler interface {
 }
 
 // ParseFunc implements Crawler.Parse.
-type ParseFunc func(url *url.URL, body []byte) (err error)
+type ParseFunc func(url *url.URL, root *html.Node, body []byte) error
 
 type userAgent interface {
 	Test(path string) (ok bool)
@@ -203,8 +204,8 @@ func (c *defCrawler) Fetch(url *url.URL) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (c *defCrawler) Parse(url *url.URL, body []byte) error {
-	return c.parseFunc(url, body)
+func (c *defCrawler) Parse(url *url.URL, root *html.Node, body []byte) error {
+	return c.parseFunc(url, root, body)
 }
 
 func (c *defCrawler) Accept(url *url.URL) bool {
