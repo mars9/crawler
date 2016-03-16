@@ -51,8 +51,10 @@ func (w *worker) printf(format string, args ...interface{}) {
 }
 */
 
+// Option is a function which applies configuration to a crawler cluster.
 type Options func(*Option)
 
+// Option represents a crawler configuration object.
 type Option struct {
 	capacity int
 	worker   int
@@ -73,12 +75,14 @@ func newOption(opts ...Options) *Option {
 	return o
 }
 
+// QueueCapacity configures the crawler queue channel capacity.
 func QueueCapacity(num int) Options {
 	return func(opt *Option) {
 		opt.capacity = num
 	}
 }
 
+// Workers configures the amount of concurrent worker.
 func Workers(num int) Options {
 	return func(opt *Option) {
 		opt.worker = num
@@ -93,8 +97,8 @@ func Logger(logger *log.Logger) Options {
 }
 */
 
-// Start starts a new crawl. Crawlers defines the number concurrently
-// working crawlers.
+// Start starts a new crawler cluster. Opts can be used to configure the
+// cluster.
 func Start(ctx context.Context, crawler Crawler, opts ...Options) {
 	opt := newOption(opts...)
 	canceler := make([]context.CancelFunc, opt.worker)

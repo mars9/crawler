@@ -15,11 +15,10 @@ import (
 	"time"
 
 	"github.com/mars9/crawler/pb"
-	"github.com/mars9/crawler/robotstxt"
 	"golang.org/x/net/html"
 )
 
-// Default options.
+// Default crawler options.
 const (
 	DefaultUserAgent       = "Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0"
 	DefaultRobotsUserAgent = "Googlebot (crawlbot v1)"
@@ -28,7 +27,7 @@ const (
 )
 
 // Crawler represents a crawler implementation. A crawler implementation must
-// safe for concurrent use.
+// be safe for concurrent use.
 type Crawler interface {
 	// Fetch issues a GET to the specified URL and returns the response body
 	// and an error if any.
@@ -65,41 +64,9 @@ type Crawler interface {
 	TTL() (timeout time.Duration)
 }
 
-// ParseFunc implements Crawler.Parse.
+// ParseFunc implements Crawler.Parse. ParseFunc must be safe for
+// concurrent use.
 type ParseFunc func(url *url.URL, root *html.Node, body []byte) error
-
-type userAgent interface {
-	Test(path string) (ok bool)
-}
-
-type fakeAgent struct{}
-
-func (f fakeAgent) Test(path string) bool { return true }
-
-func fetchUserAgent(domain *url.URL, robotsAgent string) userAgent {
-	req, err := http.NewRequest("GET", domain.String()+"/robots.txt", nil)
-	if err != nil {
-		return fakeAgent{}
-	}
-	req.Header.Set("User-Agent", robotsAgent)
-
-	client := &http.Client{} // TODO: reuse client / client pool
-	resp, err := client.Do(req)
-	if err != nil {
-		return fakeAgent{}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fakeAgent{}
-	}
-
-	robots, err := robotstxt.Parse(resp.Body)
-	if err != nil {
-		return fakeAgent{}
-	}
-	return robots.FindGroup(DefaultUserAgent)
-}
 
 type defCrawler struct {
 	domain    *url.URL
@@ -117,7 +84,8 @@ type defCrawler struct {
 	visited map[string]bool
 }
 
-// New returns a default Crawler implementation.
+// New returns the default Crawler implementation. Config can be used to
+// configure the crawler.
 func New(config *pb.Config, parse ParseFunc) (Crawler, error) {
 	domain, err := url.Parse(config.Domain)
 	if err != nil {
@@ -220,6 +188,11 @@ func (c *defCrawler) Accept(url *url.URL) bool {
 			return false
 		}
 	}
+
+	if len(c.accept) == 0 { // accept all urls
+		return true
+	}
+
 	for i := range c.accept {
 		if c.accept[i].MatchString(url.String()) {
 			return true

@@ -6,6 +6,10 @@ package crawler
 
 import "net/url"
 
+// NewQueue returns a infinite buffered channel queue. A queue receives
+// input on the send channel und sending output to the receive channel. On
+// termination queue closes the receive channel. The caller must close the
+// send channel.
 func NewQueue(capacity int) (chan<- *url.URL, <-chan *url.URL) {
 	push := make(chan *url.URL)
 	pop := make(chan *url.URL)
