@@ -9,9 +9,11 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
+	pb "github.com/mars9/crawler/crawlerpb"
 	"golang.org/x/net/context"
 )
 
@@ -100,7 +102,7 @@ func TestCrawlerIntegration(t *testing.T) {
 	defer server.Close()
 
 	initDirectory(t, server.URL, testDataDir)
-	config := Config{
+	config := &pb.Config{
 		Domain: server.URL,
 		Seeds: []string{
 			server.URL + "/index0000",
@@ -110,7 +112,7 @@ func TestCrawlerIntegration(t *testing.T) {
 		},
 		Accept:     []string{server.URL},
 		Reject:     []string{},
-		TimeToLive: time.Millisecond * 50,
+		TimeToLive: int64(time.Millisecond * 50),
 		Delay:      0,
 	}
 
@@ -123,8 +125,11 @@ func TestCrawlerIntegration(t *testing.T) {
 	}
 
 	got := make(map[string]bool)
+	var parseMutex sync.Mutex
 	c, err := New(config, func(url *url.URL, body []byte) error {
+		parseMutex.Lock()
 		got[url.String()] = true
+		parseMutex.Unlock()
 		return nil
 	})
 	if err != nil {
@@ -145,7 +150,7 @@ func TestCrawlerMaxVisit(t *testing.T) {
 	defer server.Close()
 
 	initDirectory(t, server.URL, testDataDir)
-	config := Config{
+	config := &pb.Config{
 		Domain: server.URL,
 		Seeds: []string{
 			server.URL + "/index0000",
@@ -156,7 +161,7 @@ func TestCrawlerMaxVisit(t *testing.T) {
 		Accept:     []string{server.URL},
 		MaxVisit:   3,
 		Reject:     []string{},
-		TimeToLive: time.Millisecond * 50,
+		TimeToLive: int64(time.Millisecond * 50),
 		Delay:      0,
 	}
 
@@ -166,8 +171,11 @@ func TestCrawlerMaxVisit(t *testing.T) {
 	}
 
 	got := make(map[string]bool)
+	var parseMutex sync.Mutex
 	c, err := New(config, func(url *url.URL, body []byte) error {
+		parseMutex.Lock()
 		got[url.String()] = true
+		parseMutex.Unlock()
 		return nil
 	})
 	if err != nil {

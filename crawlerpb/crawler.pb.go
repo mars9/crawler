@@ -9,233 +9,56 @@ It is generated from these files:
 	crawler.proto
 
 It has these top-level messages:
-	Crawler
-	Record
+	Config
 */
 package crawlerpb
 
 import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
 import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
+var _ = fmt.Errorf
 var _ = math.Inf
 
-type Crawler struct {
-	Domain           *string  `protobuf:"bytes,1,req,name=domain" json:"domain,omitempty"`
-	UserAgent        *string  `protobuf:"bytes,2,opt,name=user_agent" json:"user_agent,omitempty"`
-	RobotsAgent      *string  `protobuf:"bytes,3,opt,name=robots_agent" json:"robots_agent,omitempty"`
-	Seeds            []string `protobuf:"bytes,4,rep,name=seeds" json:"seeds,omitempty"`
-	Accept           []string `protobuf:"bytes,5,rep,name=accept" json:"accept,omitempty"`
-	Reject           []string `protobuf:"bytes,6,rep,name=reject" json:"reject,omitempty"`
-	MaxVisit         *uint32  `protobuf:"varint,7,opt,name=max_visit" json:"max_visit,omitempty"`
-	TimeToLive       *int64   `protobuf:"varint,8,opt,name=time_to_live" json:"time_to_live,omitempty"`
-	Delay            *int64   `protobuf:"varint,9,opt,name=delay" json:"delay,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+const _ = proto.ProtoPackageIsVersion1
+
+type Config struct {
+	Domain      string   `protobuf:"bytes,1,opt,name=domain" json:"domain,omitempty"`
+	UserAgent   string   `protobuf:"bytes,2,opt,name=user_agent" json:"user_agent,omitempty"`
+	RobotsAgent string   `protobuf:"bytes,3,opt,name=robots_agent" json:"robots_agent,omitempty"`
+	Seeds       []string `protobuf:"bytes,4,rep,name=seeds" json:"seeds,omitempty"`
+	Accept      []string `protobuf:"bytes,5,rep,name=accept" json:"accept,omitempty"`
+	Reject      []string `protobuf:"bytes,6,rep,name=reject" json:"reject,omitempty"`
+	MaxVisit    int64    `protobuf:"varint,7,opt,name=max_visit" json:"max_visit,omitempty"`
+	TimeToLive  int64    `protobuf:"varint,8,opt,name=time_to_live" json:"time_to_live,omitempty"`
+	Delay       int64    `protobuf:"varint,9,opt,name=delay" json:"delay,omitempty"`
 }
 
-func (m *Crawler) Reset()         { *m = Crawler{} }
-func (m *Crawler) String() string { return proto.CompactTextString(m) }
-func (*Crawler) ProtoMessage()    {}
-
-func (m *Crawler) GetDomain() string {
-	if m != nil && m.Domain != nil {
-		return *m.Domain
-	}
-	return ""
-}
-
-func (m *Crawler) GetUserAgent() string {
-	if m != nil && m.UserAgent != nil {
-		return *m.UserAgent
-	}
-	return ""
-}
-
-func (m *Crawler) GetRobotsAgent() string {
-	if m != nil && m.RobotsAgent != nil {
-		return *m.RobotsAgent
-	}
-	return ""
-}
-
-func (m *Crawler) GetSeeds() []string {
-	if m != nil {
-		return m.Seeds
-	}
-	return nil
-}
-
-func (m *Crawler) GetAccept() []string {
-	if m != nil {
-		return m.Accept
-	}
-	return nil
-}
-
-func (m *Crawler) GetReject() []string {
-	if m != nil {
-		return m.Reject
-	}
-	return nil
-}
-
-func (m *Crawler) GetMaxVisit() uint32 {
-	if m != nil && m.MaxVisit != nil {
-		return *m.MaxVisit
-	}
-	return 0
-}
-
-func (m *Crawler) GetTimeToLive() int64 {
-	if m != nil && m.TimeToLive != nil {
-		return *m.TimeToLive
-	}
-	return 0
-}
-
-func (m *Crawler) GetDelay() int64 {
-	if m != nil && m.Delay != nil {
-		return *m.Delay
-	}
-	return 0
-}
-
-type Record struct {
-	URL              *string  `protobuf:"bytes,1,req" json:"URL,omitempty"`
-	Key              []byte   `protobuf:"bytes,2,req,name=key" json:"key,omitempty"`
-	Title            *string  `protobuf:"bytes,3,opt,name=title" json:"title,omitempty"`
-	Language         *string  `protobuf:"bytes,4,opt,name=language" json:"language,omitempty"`
-	Description      *string  `protobuf:"bytes,5,opt,name=description" json:"description,omitempty"`
-	Author           *string  `protobuf:"bytes,6,opt,name=author" json:"author,omitempty"`
-	Generator        *string  `protobuf:"bytes,7,opt,name=generator" json:"generator,omitempty"`
-	Copyright        *string  `protobuf:"bytes,8,opt,name=copyright" json:"copyright,omitempty"`
-	Keywords         []string `protobuf:"bytes,9,rep,name=keywords" json:"keywords,omitempty"`
-	Robots           []string `protobuf:"bytes,10,rep,name=robots" json:"robots,omitempty"`
-	External         []string `protobuf:"bytes,11,rep,name=external" json:"external,omitempty"`
-	Links            []string `protobuf:"bytes,12,rep,name=links" json:"links,omitempty"`
-	Scripts          []string `protobuf:"bytes,13,rep,name=scripts" json:"scripts,omitempty"`
-	Body             []byte   `protobuf:"bytes,14,opt,name=body" json:"body,omitempty"`
-	Checksum         []byte   `protobuf:"bytes,15,opt,name=checksum" json:"checksum,omitempty"`
-	Data             []byte   `protobuf:"bytes,16,opt,name=data" json:"data,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
-}
-
-func (m *Record) Reset()         { *m = Record{} }
-func (m *Record) String() string { return proto.CompactTextString(m) }
-func (*Record) ProtoMessage()    {}
-
-func (m *Record) GetURL() string {
-	if m != nil && m.URL != nil {
-		return *m.URL
-	}
-	return ""
-}
-
-func (m *Record) GetKey() []byte {
-	if m != nil {
-		return m.Key
-	}
-	return nil
-}
-
-func (m *Record) GetTitle() string {
-	if m != nil && m.Title != nil {
-		return *m.Title
-	}
-	return ""
-}
-
-func (m *Record) GetLanguage() string {
-	if m != nil && m.Language != nil {
-		return *m.Language
-	}
-	return ""
-}
-
-func (m *Record) GetDescription() string {
-	if m != nil && m.Description != nil {
-		return *m.Description
-	}
-	return ""
-}
-
-func (m *Record) GetAuthor() string {
-	if m != nil && m.Author != nil {
-		return *m.Author
-	}
-	return ""
-}
-
-func (m *Record) GetGenerator() string {
-	if m != nil && m.Generator != nil {
-		return *m.Generator
-	}
-	return ""
-}
-
-func (m *Record) GetCopyright() string {
-	if m != nil && m.Copyright != nil {
-		return *m.Copyright
-	}
-	return ""
-}
-
-func (m *Record) GetKeywords() []string {
-	if m != nil {
-		return m.Keywords
-	}
-	return nil
-}
-
-func (m *Record) GetRobots() []string {
-	if m != nil {
-		return m.Robots
-	}
-	return nil
-}
-
-func (m *Record) GetExternal() []string {
-	if m != nil {
-		return m.External
-	}
-	return nil
-}
-
-func (m *Record) GetLinks() []string {
-	if m != nil {
-		return m.Links
-	}
-	return nil
-}
-
-func (m *Record) GetScripts() []string {
-	if m != nil {
-		return m.Scripts
-	}
-	return nil
-}
-
-func (m *Record) GetBody() []byte {
-	if m != nil {
-		return m.Body
-	}
-	return nil
-}
-
-func (m *Record) GetChecksum() []byte {
-	if m != nil {
-		return m.Checksum
-	}
-	return nil
-}
-
-func (m *Record) GetData() []byte {
-	if m != nil {
-		return m.Data
-	}
-	return nil
-}
+func (m *Config) Reset()                    { *m = Config{} }
+func (m *Config) String() string            { return proto.CompactTextString(m) }
+func (*Config) ProtoMessage()               {}
+func (*Config) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
 func init() {
+	proto.RegisterType((*Config)(nil), "crawlerpb.Config")
+}
+
+var fileDescriptor0 = []byte{
+	// 182 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x34, 0xce, 0x41, 0x6e, 0x83, 0x30,
+	0x10, 0x85, 0x61, 0x51, 0x8a, 0x5b, 0x8f, 0x4a, 0xa5, 0x5a, 0x5d, 0xcc, 0x12, 0x65, 0x95, 0x55,
+	0x36, 0x39, 0x42, 0x0e, 0x62, 0x19, 0x33, 0x41, 0x8e, 0x00, 0x23, 0x7b, 0x42, 0x92, 0x23, 0xe5,
+	0x96, 0x31, 0x16, 0x59, 0x7e, 0x6f, 0xf1, 0xeb, 0x41, 0x6d, 0x83, 0xb9, 0x0d, 0x14, 0x0e, 0x73,
+	0xf0, 0xec, 0x95, 0xdc, 0x38, 0xb7, 0xbb, 0x67, 0x01, 0xe2, 0xe4, 0xa7, 0xb3, 0xeb, 0xd5, 0x2f,
+	0x88, 0xce, 0x8f, 0xc6, 0x4d, 0x58, 0x34, 0xc5, 0x5e, 0x2a, 0x05, 0x70, 0x8d, 0x14, 0xb4, 0xe9,
+	0x69, 0x62, 0xfc, 0xc8, 0xdb, 0x3f, 0xfc, 0x04, 0xdf, 0x7a, 0x8e, 0xdb, 0x5a, 0xe6, 0xb5, 0x86,
+	0x2a, 0x12, 0x75, 0x11, 0x3f, 0x9b, 0x32, 0x31, 0x85, 0x8c, 0xb5, 0x34, 0x33, 0x56, 0x6f, 0x07,
+	0xba, 0x90, 0x65, 0x14, 0xd9, 0x7f, 0x20, 0x47, 0x73, 0xd7, 0x8b, 0x8b, 0x8e, 0xf1, 0x2b, 0x15,
+	0xca, 0xb5, 0xcb, 0x6e, 0x24, 0xcd, 0x5e, 0x0f, 0x6e, 0x21, 0xfc, 0xce, 0x6b, 0xea, 0x76, 0x34,
+	0x98, 0x07, 0xca, 0x95, 0xad, 0xc8, 0xef, 0x8f, 0xaf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xe9, 0xe6,
+	0x57, 0x82, 0xce, 0x00, 0x00, 0x00,
 }

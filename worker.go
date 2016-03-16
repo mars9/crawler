@@ -1,192 +1,105 @@
 package crawler
 
 import (
-	"errors"
-	"io"
-	"net/http"
 	"net/url"
-	"regexp"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/mars9/crawler/robotstxt"
+	"golang.org/x/net/context"
 )
 
-// ParseFunc implements Crawler Parse.
-type ParseFunc func(url *url.URL, body []byte) (err error)
-
-type userAgent interface {
-	Test(path string) (ok bool)
+type worker struct {
+	workerc chan<- chan *url.URL
+	workc   chan *url.URL
+	id      int
+	wg      *sync.WaitGroup
+	c       Crawler
 }
 
-type fakeAgent struct{}
+func (w *worker) Start(ctx context.Context, push chan<- *url.URL) {
+	defer w.wg.Done()
 
-func (f fakeAgent) Test(path string) bool { return true }
+	var err error
+	for {
+		w.workerc <- w.workc
 
-func fetchUserAgent(domain *url.URL, robotsAgent string) userAgent {
-	req, err := http.NewRequest("GET", domain.String()+"/robots.txt", nil)
-	if err != nil {
-		return fakeAgent{}
-	}
-	req.Header.Set("User-Agent", robotsAgent)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fakeAgent{}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fakeAgent{}
-	}
-
-	robots, err := robotstxt.Parse(resp.Body)
-	if err != nil {
-		return fakeAgent{}
-	}
-	return robots.FindGroup(DefaultUserAgent)
-}
-
-// Config defines the default crawler configuration.
-type Config struct {
-	Domain      string        `json:"domain"`
-	UserAgent   string        `json:"user_agent"`
-	RobotsAgent string        `json:"robots_agent""`
-	Seeds       []string      `json:"seeds"`
-	Accept      []string      `json:"accept"`
-	Reject      []string      `json:"reject"`
-	MaxVisit    uint32        `json:"max_visit"`
-	TimeToLive  time.Duration `json:"time_to_live"`
-	Delay       time.Duration `json:"delay"`
-}
-
-// New returns a default Crawler implementation.
-func New(config Config, fn ParseFunc) (Crawler, error) {
-	domain, err := url.Parse(config.Domain)
-	if err != nil {
-		return nil, err
-	}
-
-	seeds, n := make([]*url.URL, len(config.Seeds)), 0
-	for i := range config.Seeds {
-		seeds[n], err = url.Parse(config.Seeds[i])
-		if err != nil {
-			continue
+		select {
+		case url := <-w.workc:
+			if err = Fetch(url, w.c, push); err != nil {
+				break
+			}
+		case <-ctx.Done():
+			return
 		}
-		n++
-	}
-	seeds = seeds[:n]
 
-	accept := make([]*regexp.Regexp, len(config.Accept))
-	reject := make([]*regexp.Regexp, len(config.Reject))
-	for i := range config.Accept {
-		accept[i], err = regexp.Compile(config.Accept[i])
-		if err != nil {
-			return nil, err
+		if w.c.Delay() > 0 {
+			time.Sleep(w.c.Delay())
 		}
 	}
-	for i := range config.Reject {
-		reject[i], err = regexp.Compile(config.Reject[i])
-		if err != nil {
-			return nil, err
+}
+
+// Start starts a new crawl. Crawlers defines the number concurrently
+// working crawlers.
+func Start(ctx context.Context, crawler Crawler, crawlers int) {
+	canceler := make([]context.CancelFunc, crawlers)
+	workerc := make(chan chan *url.URL, crawlers)
+	workers := make([]*worker, crawlers)
+	pushc := make(chan *url.URL, 16)
+	popc := make(chan *url.URL, 16)
+	wg := &sync.WaitGroup{}
+
+	go Queue(pushc, popc)
+	defer close(pushc)
+
+	go func() {
+		for _, seed := range crawler.Seeds() {
+			pushc <- seed
 		}
-	}
-	if config.TimeToLive == 0 {
-		config.TimeToLive = DefaultTimeToLive
-	}
-	if config.UserAgent == "" {
-		config.UserAgent = DefaultUserAgent
-	}
-	if config.RobotsAgent == "" {
-		config.RobotsAgent = DefaultRobotsUserAgent
-	}
+	}()
 
-	return &defCrawler{
-		domain:    domain,
-		userAgent: config.UserAgent,
-		seeds:     seeds,
-		accept:    accept,
-		reject:    reject,
-		ttl:       config.TimeToLive,
-		delay:     config.Delay,
-		maxVisit:  config.MaxVisit,
-		parseFunc: fn,
-		client:    &http.Client{Transport: &http.Transport{}},
-		agent:     fetchUserAgent(domain, config.RobotsAgent),
-		visited:   make(map[string]bool),
-	}, nil
-}
-
-type defCrawler struct {
-	domain    *url.URL
-	userAgent string
-	seeds     []*url.URL
-	accept    []*regexp.Regexp
-	reject    []*regexp.Regexp
-	ttl       time.Duration
-	delay     time.Duration
-	maxVisit  uint32
-	parseFunc ParseFunc
-	client    *http.Client
-	agent     userAgent
-	mu        sync.Mutex
-	visited   map[string]bool
-}
-
-var errorReg = regexp.MustCompile(`[0-9]* `)
-
-func (c *defCrawler) Fetch(url *url.URL) (io.ReadCloser, error) {
-	c.mu.Lock()
-	if _, found := c.visited[url.String()]; found {
-		c.mu.Unlock()
-		return nil, errors.New("already visited")
-	}
-	c.visited[url.String()] = true
-	c.mu.Unlock()
-
-	if !c.agent.Test(url.String()) {
-		return nil, errors.New("rejected by robots.txt")
-	}
-
-	req, err := http.NewRequest("GET", url.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", DefaultUserAgent)
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		msg := strings.ToLower(errorReg.ReplaceAllString(resp.Status, ""))
-		return nil, errors.New(msg)
-	}
-	return resp.Body, nil
-}
-
-func (c *defCrawler) Parse(url *url.URL, body []byte) error {
-	return c.parseFunc(url, body)
-}
-
-func (c *defCrawler) Accept(url *url.URL) bool {
-	for i := range c.reject {
-		if c.reject[i].MatchString(url.String()) {
-			return false
+	for i := 0; i < crawlers; i++ {
+		workers[i] = &worker{
+			workc:   make(chan *url.URL, 1),
+			workerc: workerc,
+			id:      i,
+			wg:      wg,
+			c:       crawler,
 		}
-	}
-	for i := range c.accept {
-		if c.accept[i].MatchString(url.String()) {
-			return true
-		}
-	}
-	return false
-}
 
-func (c *defCrawler) MaxVisit() uint32     { return c.maxVisit }
-func (c *defCrawler) Seeds() []*url.URL    { return c.seeds }
-func (c *defCrawler) Domain() *url.URL     { return c.domain }
-func (c *defCrawler) Delay() time.Duration { return c.delay }
-func (c *defCrawler) TTL() time.Duration   { return c.ttl }
+		context, cancel := context.WithCancel(ctx)
+		canceler[i] = cancel
+		wg.Add(1)
+		go workers[i].Start(context, pushc)
+	}
+
+	timer := time.NewTimer(crawler.TTL())
+	donec := make(chan struct{}, 1)
+	go func(popc <-chan *url.URL) {
+		var visited int64
+		for url := range popc {
+			visited++
+			if crawler.MaxVisit() > 0 && crawler.MaxVisit() < visited {
+				donec <- struct{}{}
+				return
+			}
+
+			workc := <-workerc
+			workc <- url
+
+			timer.Reset(crawler.TTL())
+		}
+	}(popc)
+
+	select {
+	case <-timer.C:
+		for i := range canceler {
+			canceler[i]()
+		}
+	case <-donec:
+		for i := range canceler {
+			canceler[i]()
+		}
+	case <-ctx.Done():
+	}
+	wg.Wait()
+}

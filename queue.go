@@ -2,6 +2,7 @@ package crawler
 
 import "net/url"
 
+/*
 // pushQueue pushes a new URL into the queue, expanding the queue to
 // guarantee space for more URLs.
 func pushQueue(q *[]*url.URL, link *url.URL) {
@@ -24,6 +25,7 @@ func getQueue(q *[]*url.URL) *url.URL {
 func delQueue(q *[]*url.URL) {
 	*q = (*q)[1:]
 }
+*/
 
 // Queue creates an infinite buffered channel. Queue receives input on
 // push and sending output to pop. Queue should be run in its own
@@ -32,8 +34,8 @@ func Queue(push <-chan *url.URL, pop chan<- *url.URL) {
 	queue := make([]*url.URL, 0, 64)
 	defer func() {
 		for len(queue) > 0 {
-			pop <- getQueue(&queue)
-			delQueue(&queue)
+			pop <- queue[0]
+			queue = queue[1:]
 		}
 		close(pop)
 	}()
@@ -44,7 +46,7 @@ func Queue(push <-chan *url.URL, pop chan<- *url.URL) {
 			if !ok {
 				return
 			}
-			pushQueue(&queue, url)
+			queue = append(queue, url)
 		}
 
 		select {
@@ -52,10 +54,10 @@ func Queue(push <-chan *url.URL, pop chan<- *url.URL) {
 			if !ok {
 				return
 			}
-			pushQueue(&queue, url)
+			queue = append(queue, url)
 
-		case pop <- getQueue(&queue):
-			delQueue(&queue)
+		case pop <- queue[0]:
+			queue = queue[1:]
 		}
 	}
 }

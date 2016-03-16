@@ -1,17 +1,19 @@
+syntax = "proto3";
 package crawlerpb;
 
-message Crawler {
-	required string domain        = 1;
-	optional string user_agent    = 2;
-	optional string robots_agent  = 3;
-	repeated string seeds         = 4;
-	repeated string accept        = 5;
-	repeated string reject        = 6;
-	optional uint32 max_visit     = 7;
-	optional int64 time_to_live   = 8;
-	optional int64 delay          = 9;
+message Config {
+	string domain          = 1;
+	string user_agent      = 2;
+	string robots_agent    = 3;
+	repeated string seeds  = 4;
+	repeated string accept = 5;
+	repeated string reject = 6;
+	int64 max_visit        = 7;
+	int64 time_to_live     = 8;
+	int64 delay            = 9;
 }
 
+/*
 message Record {
 	required string URL           = 1;
 	required bytes key            = 2;
@@ -30,3 +32,4 @@ message Record {
 	optional bytes checksum       = 15;
 	optional bytes data           = 16;
 }
+*/

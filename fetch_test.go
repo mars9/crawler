@@ -19,7 +19,7 @@ func (p parseTestCrawler) Fetch(url *url.URL) (io.ReadCloser, error) { return ni
 func (p parseTestCrawler) Parse(url *url.URL, body []byte) error     { return nil }
 func (p parseTestCrawler) Seeds() []*url.URL                         { return nil }
 func (p parseTestCrawler) Domain() *url.URL                          { return p.domain }
-func (p parseTestCrawler) MaxVisit() uint32                          { return 0 }
+func (p parseTestCrawler) MaxVisit() int64                           { return 0 }
 func (p parseTestCrawler) Accept(url *url.URL) bool                  { return true }
 func (p parseTestCrawler) Delay() time.Duration                      { return 0 }
 func (p parseTestCrawler) TTL() time.Duration                        { return p.ttl }
