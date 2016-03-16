@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/mars9/crawler/crawlerpb"
+	"github.com/mars9/crawler/pb"
 	"golang.org/x/net/context"
 	"golang.org/x/net/html"
 )
@@ -50,7 +50,8 @@ func initDirectory(t *testing.T, testServerAddr, testDataDir string) {
 	for i := 0; i < 20; i++ {
 		page := page{
 			Path: path.Join(testDataDir, fmt.Sprintf("page%.4d", i)),
-			Body: []byte(fmt.Sprintf(pageData, i, testServerAddr, i+20, i+20)),
+			Body: []byte(fmt.Sprintf(pageData, i, testServerAddr, i+20, i+20,
+				testServerAddr, i+20, i+20)),
 		}
 		if err := ioutil.WriteFile(page.Path, page.Body, 0644); err != nil {
 			t.Fatalf("write %s: %v", page.Path, err)
@@ -59,7 +60,8 @@ func initDirectory(t *testing.T, testServerAddr, testDataDir string) {
 	for i := 20; i < 40; i++ {
 		page := page{
 			Path: path.Join(testDataDir, fmt.Sprintf("page%.4d", i)),
-			Body: []byte(fmt.Sprintf(pageData, i, testServerAddr, i-20, i-20)),
+			Body: []byte(fmt.Sprintf(pageData, i, testServerAddr, i-20, i-20,
+				testServerAddr, i-20, i-20)),
 		}
 		if err := ioutil.WriteFile(page.Path, page.Body, 0644); err != nil {
 			t.Fatalf("write %s: %v", page.Path, err)
@@ -138,10 +140,10 @@ func TestCrawlerIntegration(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Fatal("default crawler: %v", err)
+		t.Fatalf("default crawler: %v", err)
 	}
 
-	Start(context.Background(), c, CrawlWorkers(5))
+	Start(context.Background(), c, Workers(5))
 
 	assert(t, "urls", want, got)
 }
@@ -184,10 +186,10 @@ func TestCrawlerMaxVisit(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Fatal("default crawler: %v", err)
+		t.Fatalf("default crawler: %v", err)
 	}
 
-	Start(context.Background(), c, CrawlWorkers(5))
+	Start(context.Background(), c, Workers(5))
 
 	assert(t, "urls", want, got)
 }

@@ -42,6 +42,15 @@ func (w *worker) Start(ctx context.Context, push chan<- *url.URL) {
 	}
 }
 
+/*
+func (w *worker) printf(format string, args ...interface{}) {
+	if w.logger == nil {
+		return
+	}
+	w.logger.Printf(format, args...)
+}
+*/
+
 type Options func(*Option)
 
 type Option struct {
@@ -64,17 +73,25 @@ func newOption(opts ...Options) *Option {
 	return o
 }
 
-func CrawlWorkers(num int) Options {
-	return func(opt *Option) {
-		opt.worker = num
-	}
-}
-
 func QueueCapacity(num int) Options {
 	return func(opt *Option) {
 		opt.capacity = num
 	}
 }
+
+func Workers(num int) Options {
+	return func(opt *Option) {
+		opt.worker = num
+	}
+}
+
+/*
+func Logger(logger *log.Logger) Options {
+	return func(opt *Option) {
+		opt.logger = logger
+	}
+}
+*/
 
 // Start starts a new crawl. Crawlers defines the number concurrently
 // working crawlers.

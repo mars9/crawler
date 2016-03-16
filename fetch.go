@@ -47,7 +47,6 @@ func normalize(domain *url.URL, link string) (*url.URL, error) {
 	case strings.HasPrefix(link, "#"):
 		link = domain.Scheme + "://" + domain.Host + "/" + link
 	}
-
 	return url.Parse(link) // verify, normalize url
 }
 

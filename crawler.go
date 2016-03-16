@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/mars9/crawler/crawlerpb"
+	"github.com/mars9/crawler/pb"
 	"github.com/mars9/crawler/robotstxt"
 	"golang.org/x/net/html"
 )
@@ -27,7 +27,8 @@ const (
 	DefaultCrawlDelay      = 3 * time.Second
 )
 
-// Crawler represents a crawler implementation.
+// Crawler represents a crawler implementation. A crawler implementation must
+// safe for concurrent use.
 type Crawler interface {
 	// Fetch issues a GET to the specified URL and returns the response body
 	// and an error if any.
@@ -160,7 +161,12 @@ func New(config *pb.Config, parse ParseFunc) (Crawler, error) {
 		config.RobotsAgent = DefaultRobotsUserAgent
 	}
 
-	agent := fetchUserAgent(domain, config.RobotsAgent)
+	var agent userAgent
+	if !config.DisablePoliteness {
+		agent = fetchUserAgent(domain, config.RobotsAgent)
+	} else {
+		agent = fakeAgent{}
+	}
 	return &defCrawler{
 		domain:    domain,
 		userAgent: config.UserAgent,

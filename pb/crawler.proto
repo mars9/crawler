@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 syntax = "proto3";
-package crawlerpb;
+package pb;
 
 message Config {
 	string domain            = 1;
@@ -14,7 +14,8 @@ message Config {
 	repeated string reject   = 6;
 	int64 max_visit          = 7;
 	int64 time_to_live       = 8;
-	int64 delay              = 9;
+	bool disable_politeness  = 9;
+	int64 delay              = 10;
 }
 
 message Record {
