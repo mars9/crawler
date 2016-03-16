@@ -83,11 +83,9 @@ func Start(ctx context.Context, crawler Crawler, opts ...Options) {
 	canceler := make([]context.CancelFunc, opt.worker)
 	workerc := make(chan chan *url.URL, opt.worker)
 	workers := make([]*worker, opt.worker)
-	pushc := make(chan *url.URL, opt.capacity)
-	popc := make(chan *url.URL, opt.capacity)
 	wg := &sync.WaitGroup{}
 
-	go Queue(pushc, popc)
+	pushc, popc := NewQueue(opt.capacity)
 	defer close(pushc)
 
 	go func() {

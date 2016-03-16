@@ -6,35 +6,17 @@ package crawler
 
 import "net/url"
 
-/*
-// pushQueue pushes a new URL into the queue, expanding the queue to
-// guarantee space for more URLs.
-func pushQueue(q *[]*url.URL, link *url.URL) {
-	if len(*q) == cap(*q) {
-		nq := make([]*url.URL, len(*q), cap(*q)*2+len(*q))
-		copy(nq, *q)
-		*q = nq
-	}
-	*q = append(*q, link)
+func NewQueue(capacity int) (chan<- *url.URL, <-chan *url.URL) {
+	push := make(chan *url.URL)
+	pop := make(chan *url.URL)
+	go queue(push, pop)
+	return push, pop
 }
 
-// getQueue pops out the first URL from the queue. getQueue panics if
-// there is no such element.
-func getQueue(q *[]*url.URL) *url.URL {
-	return (*q)[0]
-}
-
-// delQueue deletes the first URL from the queue. delQueue panics if
-// there is no such element.
-func delQueue(q *[]*url.URL) {
-	*q = (*q)[1:]
-}
-*/
-
-// Queue creates an infinite buffered channel. Queue receives input on
+// queue creates an infinite buffered channel. Queue receives input on
 // push and sending output to pop. Queue should be run in its own
-// goroutine. On termination Queue closes pop.
-func Queue(push <-chan *url.URL, pop chan<- *url.URL) {
+// goroutine. On termination queue closes pop.
+func queue(push <-chan *url.URL, pop chan<- *url.URL) {
 	queue := make([]*url.URL, 0, 64)
 	defer func() {
 		for len(queue) > 0 {

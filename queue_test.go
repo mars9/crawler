@@ -35,16 +35,14 @@ func assert(t *testing.T, prefix string, expected, got interface{}) {
 func TestQueue(t *testing.T) {
 	t.Parallel()
 
-	pushc := make(chan *url.URL, 3)
-	popc := make(chan *url.URL, 3)
 	donec := make(chan struct{})
+	pushc, popc := NewQueue(3)
 	want := make([]*url.URL, 10)
 	var got []*url.URL
 	for i := 0; i < 10; i++ {
 		want[i], _ = url.Parse(fmt.Sprintf("http://example.com/site%d", i))
 	}
 
-	go Queue(pushc, popc)
 	go func() {
 		for url := range popc {
 			got = append(got, url)

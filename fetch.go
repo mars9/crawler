@@ -71,10 +71,6 @@ func Fetch(url *url.URL, crawler Crawler, push chan<- *url.URL) error {
 		return err
 	}
 
-	//prefix, err := regexp.Compile(`^` + c.Domain().String())
-	//if err != nil {
-	//	return err
-	//}
 	if err = parseHTML(node, crawler, push); err != nil {
 		return err
 	}
