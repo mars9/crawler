@@ -50,7 +50,7 @@ func (w *worker) printf(format string, args ...interface{}) {
 }
 */
 
-// Option is a function which applies configuration to a crawler cluster.
+// Options is a function which applies configuration to a crawler cluster.
 type Options func(*Option)
 
 // Option represents a crawler configuration object.
