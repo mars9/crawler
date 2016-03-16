@@ -152,11 +152,18 @@ func New(config *pb.Config, parse ParseFunc) (Crawler, error) {
 
 func (c *defCrawler) Fetch(url *url.URL) (io.ReadCloser, error) {
 	c.mu.Lock()
-	if _, found := c.visited[url.String()]; found {
+	name := url.String()
+	if len(name) == 0 {
+		return nil, errors.New("empty domain")
+	}
+	if name[len(name)-1] == '/' {
+		name = name[:len(name)-1]
+	}
+	if _, found := c.visited[name]; found {
 		c.mu.Unlock()
 		return nil, errors.New("already visited")
 	}
-	c.visited[url.String()] = true
+	c.visited[name] = true
 	c.mu.Unlock()
 
 	if !c.agent.Test(url.String()) {

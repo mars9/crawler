@@ -21,9 +21,14 @@ func ExampleStart() {
 		Seeds: []string{
 			"https://golang.org/doc/",
 			"https://golang.org/pkg/",
+			"https://golang.org",
 		},
-		TimeToLive: int64(time.Second * 1),
+		Accept: []string{
+			"https://golang.org",
+		},
+		TimeToLive: int64(time.Second * 10),
 		Delay:      int64(time.Second * 1),
+		MaxVisit:   50,
 	}
 
 	c, err := New(config, parse)
