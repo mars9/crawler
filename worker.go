@@ -23,13 +23,12 @@ type worker struct {
 func (w *worker) Start(ctx context.Context, push chan<- *url.URL) {
 	defer w.wg.Done()
 
-	var err error
 	for {
 		w.workerc <- w.workc
 
 		select {
 		case url := <-w.workc:
-			if err = Fetch(url, w.c, push); err != nil {
+			if err := Fetch(url, w.c, push); err != nil {
 				break
 			}
 		case <-ctx.Done():
