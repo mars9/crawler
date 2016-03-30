@@ -1,13 +1,12 @@
-// Copyright 2016 Markus Sonderegger. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// Package crawler provides a crawler implementation.
 package crawler
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,155 +17,18 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Default crawler options.
 const (
 	DefaultUserAgent       = "Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0"
-	DefaultRobotsUserAgent = "Googlebot (crawlbot v1)"
-	DefaultTimeToLive      = 3 * DefaultCrawlDelay
-	DefaultCrawlDelay      = 3 * time.Second
+	DefaultRobotsUserAgent = "Googlebot (bricktop v1)"
+	DefaultTimeToLive      = 3 * DefaultDelay
+	DefaultDelay           = 3 * time.Second
 )
 
-// Crawler represents a crawler implementation. A crawler implementation must
-// be safe for concurrent use.
-type Crawler interface {
-	// Fetch issues a GET to the specified URL and returns the response body
-	// and an error if any.
-	Fetch(url *url.URL) (rc io.ReadCloser, err error)
-
-	// Parse is called when visiting a page. Parse receives a root html Node,
-	// a http response body and should return an error, if any.
-	Parse(url *url.URL, root *html.Node, body []byte) error
-
-	// Domain returns the host to crawl.
-	Domain() (domain *url.URL)
-
-	// Accept can be used to control the crawler.
-	Accept(url *url.URL) (ok bool)
-
-	// Seeds returns the base URLs used to start crawling.
-	Seeds() []*url.URL
-
-	// MaxVisit returns the maximum number of pages visited before stopping
-	// the crawl. Note that the Crawler will send its stop signal once this
-	// number of visits is reached, but workers may be in the process of
-	// visiting other pages, so when the crawling stops, the number of pages
-	// visited will be at least MaxVisits, possibly more.
-	MaxVisit() (max int64)
-
-	// Delay returns the time to wait between each request to the same host.
-	// The delay starts as soon as the response is received from the host.
-	Delay() (delay time.Duration)
-
-	// TTL returns the duration that a crawler goroutine can wait without
-	// receiving new commands to fetch. If the idle time-to-live is reached,
-	// the crawler goroutine is stopped and its resources are released. This
-	// can be especially useful for long-running crawlers.
-	TTL() (timeout time.Duration)
-}
-
-// ParseFunc implements Crawler.Parse. ParseFunc must be safe for
-// concurrent use.
-type ParseFunc func(url *url.URL, root *html.Node, body []byte) error
-
-type defCrawler struct {
-	domain    *url.URL
-	userAgent string
-	seeds     []*url.URL
-	accept    []*regexp.Regexp
-	reject    []*regexp.Regexp
-	ttl       time.Duration
-	delay     time.Duration
-	maxVisit  int64
-	parseFunc ParseFunc
-	agent     userAgent
-
-	mu      sync.Mutex
-	visited map[string]bool
-}
-
-// New returns the default Crawler implementation. Config can be used to
-// configure the crawler.
-func New(config *pb.Config, parse ParseFunc) (Crawler, error) {
-	domain, err := url.Parse(config.Domain)
-	if err != nil {
-		return nil, err
+func Fetch(url *url.URL, agent string, robots Robots) (io.ReadCloser, error) {
+	if !url.IsAbs() {
+		return nil, errors.New("not an absolute URL")
 	}
-
-	seeds, n := make([]*url.URL, len(config.Seeds)), 0
-	for i := range config.Seeds {
-		seeds[n], err = url.Parse(config.Seeds[i])
-		if err != nil {
-			continue
-		}
-		n++
-	}
-	seeds = seeds[:n]
-
-	accept := make([]*regexp.Regexp, len(config.Accept))
-	reject := make([]*regexp.Regexp, len(config.Reject))
-	for i := range config.Accept {
-		accept[i], err = regexp.Compile(config.Accept[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	for i := range config.Reject {
-		reject[i], err = regexp.Compile(config.Reject[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	timeToLive := time.Duration(config.TimeToLive)
-	if timeToLive == 0 {
-		timeToLive = DefaultTimeToLive
-	}
-
-	if config.UserAgent == "" {
-		config.UserAgent = DefaultUserAgent
-	}
-	if config.RobotsAgent == "" {
-		config.RobotsAgent = DefaultRobotsUserAgent
-	}
-
-	var agent userAgent
-	if !config.DisablePoliteness {
-		agent = fetchUserAgent(domain, config.RobotsAgent)
-	} else {
-		agent = fakeAgent{}
-	}
-	return &defCrawler{
-		domain:    domain,
-		userAgent: config.UserAgent,
-		seeds:     seeds,
-		accept:    accept,
-		reject:    reject,
-		ttl:       timeToLive,
-		delay:     time.Duration(config.Delay),
-		maxVisit:  config.MaxVisit,
-		parseFunc: parse,
-		agent:     agent,
-		visited:   make(map[string]bool),
-	}, nil
-}
-
-func (c *defCrawler) Fetch(url *url.URL) (io.ReadCloser, error) {
-	c.mu.Lock()
-	name := url.String()
-	if len(name) == 0 {
-		return nil, errors.New("empty domain")
-	}
-	if name[len(name)-1] == '/' {
-		name = name[:len(name)-1]
-	}
-	if _, found := c.visited[name]; found {
-		c.mu.Unlock()
-		return nil, errors.New("already visited")
-	}
-	c.visited[name] = true
-	c.mu.Unlock()
-
-	if !c.agent.Test(url.String()) {
+	if robots != nil && !robots.Test(url.String()) {
 		return nil, errors.New("rejected by robots.txt")
 	}
 
@@ -174,42 +36,217 @@ func (c *defCrawler) Fetch(url *url.URL) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", DefaultUserAgent)
+	req.Header.Set("User-Agent", agent)
 
-	// TODO: reuse client
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if resp.Body != nil { // discard reader
+			io.Copy(ioutil.Discard, resp.Body)
+		}
 		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		io.Copy(ioutil.Discard, resp.Body) // discard reader
+		return nil, errors.New(resp.Status)
 	}
 	return resp.Body, nil
 }
 
-func (c *defCrawler) Parse(url *url.URL, root *html.Node, body []byte) error {
-	return c.parseFunc(url, root, body)
-}
+func Accept(url *url.URL, host string, reject, accept []*regexp.Regexp) bool {
+	if !url.IsAbs() || host != url.Host {
+		return false
+	}
 
-func (c *defCrawler) Accept(url *url.URL) bool {
-	for i := range c.reject {
-		if c.reject[i].MatchString(url.String()) {
+	name := url.String()
+	for i := range reject {
+		if reject[i].MatchString(name) {
 			return false
 		}
 	}
 
-	if len(c.accept) == 0 { // accept all urls
+	if len(accept) == 0 { // accept all urls
 		return true
 	}
 
-	for i := range c.accept {
-		if c.accept[i].MatchString(url.String()) {
+	for i := range accept {
+		if accept[i].MatchString(name) {
 			return true
 		}
 	}
 	return false
 }
 
-func (c *defCrawler) MaxVisit() int64      { return c.maxVisit }
-func (c *defCrawler) Seeds() []*url.URL    { return c.seeds }
-func (c *defCrawler) Domain() *url.URL     { return c.domain }
-func (c *defCrawler) Delay() time.Duration { return c.delay }
-func (c *defCrawler) TTL() time.Duration   { return c.ttl }
+type Robots interface {
+	Test(string) bool
+}
+
+type Crawler struct {
+	Accept func(*url.URL, string, []*regexp.Regexp, []*regexp.Regexp) bool
+	Fetch  func(*url.URL, string, Robots) (io.ReadCloser, error)
+
+	Host        *url.URL // the hostname to crawl
+	RobotsAgent string
+	UserAgent   string
+	Seeds       []*url.URL
+	Accepted    []*regexp.Regexp
+	Reject      []*regexp.Regexp
+	TTL         time.Duration
+	Delay       time.Duration
+	MaxVisit    int64
+
+	Robots Robots
+
+	once  sync.Once
+	index *index
+
+	mu      sync.Mutex // TODO
+	visited int64
+	err     error
+}
+
+func NewCrawler(config *pb.ConfigRequest) (*Crawler, error) {
+	c := &Crawler{}
+	if len(config.Host) == 0 {
+		return c, errors.New("hostname to crawl not specified")
+	}
+
+	host, err := url.Parse(config.Host)
+	if err != nil {
+		return c, fmt.Errorf("parse hostname: %v", err)
+	}
+	c.Host = host
+
+	c.Seeds = make([]*url.URL, len(config.Seeds))
+	n := 0
+	for i := range config.Seeds {
+		c.Seeds[n], err = url.Parse(config.Seeds[i])
+		if err != nil {
+			continue
+		}
+		n++
+	}
+	c.Seeds = c.Seeds[:n]
+
+	c.Accepted = make([]*regexp.Regexp, len(config.Accept))
+	c.Reject = make([]*regexp.Regexp, len(config.Reject))
+	for i := range config.Accept {
+		c.Accepted[i], err = regexp.Compile(config.Accept[i])
+		if err != nil {
+			return c, fmt.Errorf("compile accept#%d: %v", err)
+		}
+	}
+	for i := range config.Reject {
+		c.Reject[i], err = regexp.Compile(config.Reject[i])
+		if err != nil {
+			return c, fmt.Errorf("compile reject#%d: %v", err)
+		}
+	}
+
+	c.TTL = time.Duration(config.TimeToLive)
+	if c.TTL == 0 {
+		c.TTL = DefaultTimeToLive
+	}
+
+	c.RobotsAgent = config.RobotsAgent
+	c.UserAgent = config.UserAgent
+	if c.RobotsAgent == "" {
+		c.RobotsAgent = DefaultRobotsUserAgent
+	}
+	if c.UserAgent == "" {
+		c.UserAgent = DefaultUserAgent
+	}
+
+	c.Delay = time.Duration(config.Delay)
+	c.MaxVisit = config.MaxVisit
+
+	return c, nil
+}
+
+func (c *Crawler) init() {
+	c.once.Do(func() {
+		if c.Fetch == nil {
+			c.Fetch = Fetch
+		}
+		if c.Accept == nil {
+			c.Accept = Accept
+		}
+		c.index = newIndex()
+	})
+}
+
+func (c *Crawler) Do(url *url.URL, producer *Producer) {
+	c.init()
+	if c.err != nil {
+		producer.Close()
+		return
+	}
+	if c.err = c.fetch(url, producer); c.err != nil {
+		return
+	}
+	//	log.Printf("fetched: %s", url)
+
+	c.mu.Lock()
+	if c.MaxVisit > 0 && c.visited >= c.MaxVisit {
+		log.Println("-----------------------------")
+		producer.Close()
+		c.err = errors.New("crawler producer closed")
+	}
+	log.Println(c.visited, c.MaxVisit)
+	c.visited++
+	c.mu.Unlock()
+}
+
+func (c *Crawler) fetch(url *url.URL, producer *Producer) error {
+	body, err := c.Fetch(url, c.UserAgent, c.Robots)
+	if err != nil {
+		return err
+	}
+	defer body.Close()
+
+	data, err := ioutil.ReadAll(body)
+	if err != nil {
+		return err
+	}
+
+	node, err := html.Parse(bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+
+	// TODO: err signals closed Producer
+	if err = c.parse(node, producer); err != nil {
+		return err
+	}
+	return err
+}
+
+func (c *Crawler) parse(node *html.Node, prod *Producer) error {
+	if node.Type == html.ElementNode && node.Data == "a" {
+		for i := range node.Attr {
+			if node.Attr[i].Key == "href" && node.Attr[i].Val != "" {
+				url, err := normalize(c.Host, node.Attr[i].Val)
+				if err != nil {
+					continue
+				}
+
+				if !c.Accept(url, c.Host.Host, c.Reject, c.Accepted) {
+					continue
+				}
+				if c.index.Has(url) { // already visited
+					continue
+				}
+
+				if err := prod.Send(url); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	for n := node.FirstChild; n != nil; n = n.NextSibling {
+		if err := c.parse(n, prod); err != nil {
+			return err
+		}
+	}
+	return nil
+}
