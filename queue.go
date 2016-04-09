@@ -62,6 +62,9 @@ func (q *Queue) Push(url *url.URL) error {
 		return ErrLimitReached
 	}
 
+	if url == nil {
+		return ErrEmptyURL
+	}
 	key := normalizeKey(url)
 	if len(key) == 0 {
 		q.mu.Unlock()

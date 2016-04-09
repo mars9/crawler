@@ -193,14 +193,17 @@ func (w *worker) parse(parent *url.URL, node *html.Node, pusher Pusher) {
 				}
 
 				if !w.w.IsAccepted(url) { // allowed to enqueue
+					log.Printf("worker#%.3d ERROR %q: rejected url", w.id, url)
 					continue
 				}
 				if err := pusher.Push(url); err != nil {
 					switch {
 					case err == ErrDuplicateURL:
 						// nothing
+						log.Printf("worker#%.3d ERROR %q: %v", w.id, url, err)
 					case err == ErrEmptyURL:
 						// nothing
+						log.Printf("worker#%.3d ERROR %q: %v", w.id, url, err)
 					case err == ErrLimitReached:
 						w.limitReached = true
 						return
