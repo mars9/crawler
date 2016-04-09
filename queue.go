@@ -11,6 +11,9 @@ type Error string
 func (e Error) Error() string { return string(e) }
 
 const (
+	ErrNotAbsoluteURL = Error("not an absolute url")
+	ErrRejectedURL    = Error("url rejected")
+
 	ErrQueueClosed  = Error("queue is shut down")
 	ErrDuplicateURL = Error("duplicate url")
 	ErrEmptyURL     = Error("empty url")

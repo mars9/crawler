@@ -23,6 +23,8 @@ const (
 	DefaultDelay       = 3 * time.Second
 )
 
+func init() { log.SetFlags(log.Ldate | log.Lmicroseconds | log.LUTC) }
+
 func Get(url *url.URL, agent string, robots Robots) (io.ReadCloser, error) {
 	if !url.IsAbs() {
 		return nil, errors.New("not an absolute URL")
@@ -136,18 +138,26 @@ type worker struct {
 
 func (w *worker) run() {
 	for url := range w.work {
-		log.Printf("worker#%.4d received %q", w.id, url)
+		log.Printf("worker#%.3d received %q", w.id, url)
 		if err := w.fetch(url); err != nil {
-			log.Printf("ERROR %s: %v", url, err)
+			log.Printf("worker#%.3d ERROR %q: %v", w.id, url, err)
 		}
 		if w.w.Delay > 0 {
 			time.Sleep(w.w.Delay)
 		}
 	}
+	w.closed = true
 	w.wg.Done()
 }
 
 func (w *worker) fetch(url *url.URL) error {
+	if w.w.Host.Host != url.Host {
+		return ErrRejectedURL
+	}
+	if !url.IsAbs() {
+		return ErrNotAbsoluteURL
+	}
+
 	body, err := w.w.Get(url)
 	if err != nil {
 		return err
@@ -164,12 +174,12 @@ func (w *worker) fetch(url *url.URL) error {
 		return err
 	}
 
-	w.parseHTML(node, w.pusher)
+	w.parse(url, node, w.pusher)
 	w.w.Process(node, data)
 	return nil
 }
 
-func (w *worker) parseHTML(node *html.Node, pusher Pusher) {
+func (w *worker) parse(parent *url.URL, node *html.Node, pusher Pusher) {
 	if w.limitReached || w.closed {
 		return
 	}
@@ -177,7 +187,7 @@ func (w *worker) parseHTML(node *html.Node, pusher Pusher) {
 	if node.Type == html.ElementNode && node.Data == "a" {
 		for i := range node.Attr {
 			if node.Attr[i].Key == "href" && node.Attr[i].Val != "" {
-				url, err := normalize(w.w.Host, node.Attr[i].Val)
+				url, err := normalize(parent, node.Attr[i].Val)
 				if err != nil {
 					continue
 				}
@@ -206,7 +216,7 @@ func (w *worker) parseHTML(node *html.Node, pusher Pusher) {
 	}
 
 	for n := node.FirstChild; n != nil; n = n.NextSibling {
-		w.parseHTML(n, pusher)
+		w.parse(parent, n, pusher)
 	}
 }
 
@@ -277,8 +287,8 @@ func (c *Crawler) run() {
 		c.dispatch(url)
 	}
 	for _, w := range c.worker {
-		log.Printf("close worker %+v", w)
 		close(w.work)
+		log.Printf("worker#%.3d closed: <done:%d closed:%v>", w.id, w.done, w.closed)
 	}
 	c.wg.Wait()
 	close(c.done)
