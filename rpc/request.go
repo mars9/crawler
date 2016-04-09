@@ -1,8 +1,9 @@
-package main
+package rpc
 
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"regexp"
 	"time"
@@ -11,12 +12,12 @@ import (
 	"github.com/mars9/crawler/proto"
 )
 
-func NewRequest(req *proto.CrawlerRequest) (*crawler.Worker, error) {
+func newRequest(req *proto.StartRequest) (*crawler.Worker, error) {
 	w := &crawler.Worker{}
-	if len(req.Host) == 0 {
+	if len(req.Hostname) == 0 {
 		return nil, errors.New("hostname to crawl not specified")
 	}
-	host, err := url.Parse(req.Host)
+	host, err := url.Parse(req.Hostname)
 	if err != nil {
 		return nil, fmt.Errorf("parse hostname: %v", err)
 	}
@@ -50,4 +51,30 @@ func NewRequest(req *proto.CrawlerRequest) (*crawler.Worker, error) {
 	w.Delay = time.Duration(req.Delay)
 	w.MaxEnqueue = req.MaxEnqueue
 	return w, nil
+}
+
+func parseSeeds(seeds []string) []*url.URL {
+	s := make([]*url.URL, 0, len(seeds))
+	for _, seed := range seeds {
+		u, err := url.Parse(seed)
+		if err != nil {
+			continue
+		}
+		if !u.IsAbs() {
+			continue
+		}
+		s = append(s, u)
+	}
+	return s
+}
+
+func verifyWorkers(workers int32) uint8 {
+	switch {
+	case workers > math.MaxUint8:
+		return math.MaxUint8
+	case workers <= 0:
+		return 1
+	default:
+		return uint8(workers)
+	}
 }

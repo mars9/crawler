@@ -5,13 +5,36 @@
 syntax = "proto3";
 package proto;
 
-message CrawlerRequest {
-	string host              = 1;
+service Crawler {
+	rpc Start(StartRequest) returns (StartResponse);
+	rpc Stop(StopRequest) returns (StopResponse);
+}
+
+message StartRequest {
+	string hostname          = 1;
+
 	string user_agent        = 2;
 	string robots_agent      = 3;
-	repeated string seeds    = 4;
-	repeated string accept   = 5;
-	repeated string reject   = 6;
-	int64 max_enqueue        = 7;
-	int64 delay              = 9;
+	repeated string accept   = 4;
+	repeated string reject   = 5;
+	int64 max_enqueue        = 6;
+	int64 delay              = 7;
+
+	string sitemap           = 10;
+	repeated string seeds    = 11;
+	int64 time_to_live       = 12;
+	int32 workers            = 13;
+}
+
+message StartResponse {
+	int64 timestamp          = 1;
+	int32 workers            = 2;
+}
+
+message StopRequest {
+	string hostname          = 1;
+}
+
+message StopResponse {
+	int64 timestamp          = 1;
 }

@@ -1,3 +1,3 @@
-//go:generate protoc --go_out=. crawler.proto
+//go:generate protoc --go_out=plugins=grpc:. crawler.proto
 
 package proto
