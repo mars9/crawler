@@ -1,0 +1,17 @@
+// Copyright 2016 Markus Sonderegger. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+syntax = "proto3";
+package proto;
+
+message CrawlerRequest {
+	string host              = 1;
+	string user_agent        = 2;
+	string robots_agent      = 3;
+	repeated string seeds    = 4;
+	repeated string accept   = 5;
+	repeated string reject   = 6;
+	int64 max_enqueue        = 7;
+	int64 delay              = 9;
+}
