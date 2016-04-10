@@ -52,6 +52,10 @@ func NewQueue(limit int64, ttl time.Duration) *Queue {
 }
 
 func (q *Queue) Push(url *url.URL) error {
+	if url == nil {
+		return ErrEmptyURL
+	}
+
 	q.mu.Lock()
 	if q.closed {
 		q.mu.Unlock()
@@ -62,9 +66,6 @@ func (q *Queue) Push(url *url.URL) error {
 		return ErrLimitReached
 	}
 
-	if url == nil {
-		return ErrEmptyURL
-	}
 	key := normalizeKey(url)
 	if len(key) == 0 {
 		q.mu.Unlock()

@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -28,8 +27,9 @@ func startBasicTestServer(t *testing.T) (*httptest.Server, int) {
 	testDir := http.Dir(testPath)
 
 	w := new(walker)
-	err = filepath.Walk(testPath, w.walk)
-	fmt.Println(*w)
+	if err = filepath.Walk(testPath, w.walk); err != nil {
+		t.Fatalf("walk test directory %q: %v", testPath, err)
+	}
 
 	s := httptest.NewServer(http.FileServer(testDir))
 	return s, int(*w)

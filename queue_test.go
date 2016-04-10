@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+var exampleURL *url.URL
+
+func init() {
+	exampleURL, _ = url.Parse("http://example.com")
+}
+
 func TestQueueBasic(t *testing.T) {
 	got, want := 0, 2000
 	q := NewQueue(0, time.Second*30)
@@ -71,7 +77,7 @@ func TestQueueClose(t *testing.T) {
 	if err := q.Close(); err != ErrQueueClosed {
 		t.Fatalf("close queue: expected %v error, got %v", ErrQueueClosed, err)
 	}
-	if err := q.Push(nil); err != ErrQueueClosed {
+	if err := q.Push(exampleURL); err != ErrQueueClosed {
 		t.Fatalf("send queue: expected %v error, got %v", ErrQueueClosed, err)
 	}
 
@@ -85,7 +91,7 @@ func TestQueueClose(t *testing.T) {
 	q = NewQueue(8, time.Millisecond*1) // test queue timeout
 	time.Sleep(time.Millisecond * 3)
 
-	if err := q.Push(nil); err != ErrQueueClosed {
+	if err := q.Push(exampleURL); err != ErrQueueClosed {
 		t.Fatalf("send queue: expected %v error, got %v", ErrQueueClosed, err)
 	}
 	if err := q.Close(); err != ErrQueueClosed {
