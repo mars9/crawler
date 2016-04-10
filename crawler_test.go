@@ -1,30 +1,44 @@
 package crawler
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 )
 
-func startTestServer(t *testing.T) *httptest.Server {
+type walker int
+
+func (w *walker) walk(path string, info os.FileInfo, err error) error {
+	*w++
+	return nil
+}
+
+func startBasicTestServer(t *testing.T) (*httptest.Server, int) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("get current working directory: %v", err)
 	}
-	testDir := http.Dir(path.Join(cwd, "testdata"))
+	testPath := path.Join(cwd, "testdata", "basic")
+	testDir := http.Dir(testPath)
+
+	w := new(walker)
+	err = filepath.Walk(testPath, w.walk)
+	fmt.Println(*w)
 
 	s := httptest.NewServer(http.FileServer(testDir))
-	return s
+	return s, int(*w)
 }
 
 func TestBasicCrawler(t *testing.T) {
 	t.Parallel()
 
-	s := startTestServer(t)
+	s, want := startBasicTestServer(t)
 	defer s.Close()
 
 	w := &Worker{}
@@ -34,4 +48,12 @@ func TestBasicCrawler(t *testing.T) {
 	c.Start(nil, w.Host)
 
 	<-c.Done()
+
+	got := 0
+	for _, w := range c.worker {
+		got += w.done
+	}
+	if got != want {
+		t.Fatalf("basic crawler: expected %d hits, got %d", want, got)
+	}
 }

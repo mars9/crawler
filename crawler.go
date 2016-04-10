@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -169,7 +168,7 @@ func (w *worker) fetch(url *url.URL) error {
 		return err
 	}
 
-	node, err := html.Parse(bytes.NewReader(data))
+	node, err := parseHTML(data)
 	if err != nil {
 		return err
 	}
@@ -201,15 +200,19 @@ func (w *worker) parse(parent *url.URL, node *html.Node, pusher Pusher) {
 					case err == ErrDuplicateURL:
 						// nothing
 						log.Printf("worker#%.3d ERROR %q: %v", w.id, url, err)
+
 					case err == ErrEmptyURL:
 						// nothing
 						log.Printf("worker#%.3d ERROR %q: %v", w.id, url, err)
+
 					case err == ErrLimitReached:
 						w.limitReached = true
 						return
+
 					case err == ErrQueueClosed:
 						w.closed = true
 						return
+
 					default:
 						panic("unknown queue error")
 					}
@@ -293,7 +296,8 @@ func (c *Crawler) run() {
 	}
 	for _, w := range c.worker {
 		close(w.work)
-		log.Printf("worker#%.3d closed <done:%d closed:%v>", w.id, w.done, w.closed)
+		log.Printf("worker#%.3d closed <done:%d closed:%v>",
+			w.id, w.done, w.closed)
 	}
 	c.wg.Wait()
 	close(c.done)
