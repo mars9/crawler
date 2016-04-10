@@ -102,8 +102,16 @@ type Sitemap struct {
 	URLSet []URL `xml:"url"`
 }
 
-func Get(url string) (*Sitemap, error) {
-	resp, err := http.Get(url)
+func Get(url, agent string) (*Sitemap, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(agent) != 0 {
+		req.Header.Set("User-Agent", agent)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -120,23 +128,3 @@ func Get(url string) (*Sitemap, error) {
 	}
 	return &sm, nil
 }
-
-/*
-func main() {
-	data, err := ioutil.ReadFile("sitemap_at.xml")
-	if err != nil {
-		panic(err)
-	}
-
-	var sm Sitemap
-	if err := xml.Unmarshal(data, &sm); err != nil {
-		panic(err)
-	}
-
-	data, err = json.MarshalIndent(&sm, "", "\t")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(data))
-}
-*/

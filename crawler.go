@@ -226,6 +226,7 @@ func (w *worker) parse(parent *url.URL, node *html.Node, pusher Pusher) {
 type Crawler struct {
 	wg     *sync.WaitGroup
 	worker []*worker
+	w      *Worker
 	i      int // round-robin index
 	queue  *Queue
 	done   chan struct{}
@@ -235,6 +236,7 @@ func New(w *Worker, workers uint8, ttl time.Duration) *Crawler {
 	c := &Crawler{
 		queue:  NewQueue(w.MaxEnqueue, ttl),
 		worker: make([]*worker, workers),
+		w:      w,
 		wg:     &sync.WaitGroup{},
 		done:   make(chan struct{}),
 	}
@@ -257,7 +259,7 @@ func New(w *Worker, workers uint8, ttl time.Duration) *Crawler {
 
 func (c *Crawler) Start(sm *url.URL, seeds ...*url.URL) error {
 	if sm != nil {
-		sitemap, err := sitemap.Get(sm.String())
+		sitemap, err := sitemap.Get(sm.String(), c.w.UserAgent)
 		if err != nil {
 			return err
 		}
@@ -291,7 +293,7 @@ func (c *Crawler) run() {
 	}
 	for _, w := range c.worker {
 		close(w.work)
-		log.Printf("worker#%.3d closed: <done:%d closed:%v>", w.id, w.done, w.closed)
+		log.Printf("worker#%.3d closed <done:%d closed:%v>", w.id, w.done, w.closed)
 	}
 	c.wg.Wait()
 	close(c.done)
