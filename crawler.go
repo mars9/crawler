@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mars9/crawler/sitemap"
+	"github.com/mars9/crawler/transform"
 	"golang.org/x/net/html"
 )
 
@@ -87,18 +88,40 @@ type Robots interface {
 	Test(*url.URL) bool
 }
 
+// Worker represents a crawler worker implementation.
 type Worker struct {
-	GetFunc        func(*url.URL) (io.ReadCloser, error)
-	IsAcceptedFunc func(*url.URL) bool
-	ProcessFunc    func(*html.Node, []byte)
+	// GetFunc issues a GET request to the specified URL and returns the
+	// response body and an error if any.
+	GetFunc func(*url.URL) (io.ReadCloser, error)
 
-	Host        *url.URL // the hostname to crawl
-	UserAgent   string
-	Accept      []*regexp.Regexp
-	Reject      []*regexp.Regexp
-	Delay       time.Duration
-	MaxEnqueue  int64
-	RobotsAgent string
+	// IsAcceptedFunc can be used to control the crawler.
+	IsAcceptedFunc func(*url.URL) bool
+
+	// ProcessFunc can be used to scrape data.
+	ProcessFunc func(*html.Node, []byte)
+
+	// Host defines the hostname to crawl. Worker is a single-host crawler.
+	Host *url.URL
+
+	// UserAgent defines the user-agent string to use for URL fetching.
+	UserAgent string
+	Accept    []*regexp.Regexp
+	Reject    []*regexp.Regexp
+
+	// Delay to use between requests to a same host if there is not
+	// robots.txt crawl delay. The delay starts as soon as the response
+	// is received from the host.
+	Delay time.Duration
+
+	// MaxEnqueue returns the maximum number of pages visited before
+	// stopping the crawl. Note that the Crawler will send its stop signal
+	// once this number of visits is reached, but workers may be in the
+	// process of visiting other pages, so when the crawling stops, the
+	// number of pages visited will be at least MaxEnqueues, possibly more.
+	MaxEnqueue int64
+
+	// RobotsAgent defines the user-agent string to use for robots.txt.
+	//RobotsAgent string
 
 	Robots Robots
 }
@@ -130,17 +153,25 @@ type worker struct {
 	id     int
 	pusher Pusher
 	w      *Worker
+	logger *log.Logger
 
 	limitReached bool
 	closed       bool
 }
 
+func (w *worker) printf(format string, args ...interface{}) {
+	if w.logger != nil {
+		w.logger.Printf(format, args...)
+	}
+}
+
 func (w *worker) run() {
 	for url := range w.work {
-		log.Printf("worker#%.3d received %q", w.id, url)
+		w.printf("worker#%.3d received %q", w.id, url)
 		if err := w.fetch(url); err != nil {
-			log.Printf("worker#%.3d ERROR %q: %v", w.id, url, err)
+			w.printf("worker#%.3d ERROR %q: %v", w.id, url, err)
 		}
+		w.done++
 		if w.w.Delay > 0 {
 			time.Sleep(w.w.Delay)
 		}
@@ -164,6 +195,10 @@ func (w *worker) fetch(url *url.URL) error {
 	defer body.Close()
 
 	data, err := ioutil.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	data, _, err = transform.Transform(data, nil)
 	if err != nil {
 		return err
 	}
@@ -192,18 +227,18 @@ func (w *worker) parse(parent *url.URL, node *html.Node, pusher Pusher) {
 				}
 
 				if !w.w.IsAccepted(url) { // allowed to enqueue
-					log.Printf("worker#%.3d ERROR %q: rejected url", w.id, url)
+					w.printf("worker#%.3d ERROR %q: rejected url", w.id, url)
 					continue
 				}
 				if err := pusher.Push(url); err != nil {
 					switch {
 					case err == ErrDuplicateURL:
 						// nothing
-						log.Printf("worker#%.3d ERROR %q: %v", w.id, url, err)
+						w.printf("worker#%.3d ERROR %q: %v", w.id, url, err)
 
 					case err == ErrEmptyURL:
 						// nothing
-						log.Printf("worker#%.3d ERROR %q: %v", w.id, url, err)
+						w.printf("worker#%.3d ERROR %q: %v", w.id, url, err)
 
 					case err == ErrLimitReached:
 						w.limitReached = true
@@ -233,24 +268,27 @@ type Crawler struct {
 	i      int // round-robin index
 	queue  *Queue
 	done   chan struct{}
+	logger *log.Logger
 }
 
-func New(w *Worker, workers uint8, ttl time.Duration) *Crawler {
+func New(w *Worker, n uint8, ttl time.Duration, log *log.Logger) *Crawler {
 	c := &Crawler{
 		queue:  NewQueue(w.MaxEnqueue, ttl),
-		worker: make([]*worker, workers),
+		worker: make([]*worker, n),
 		w:      w,
 		wg:     &sync.WaitGroup{},
 		done:   make(chan struct{}),
+		logger: log,
 	}
 
-	for i := uint8(0); i < workers; i++ {
+	for i := uint8(0); i < n; i++ {
 		c.worker[i] = &worker{
 			work:   make(chan *url.URL), // TODO: buffered channel
 			wg:     c.wg,
 			id:     int(i) + 1,
 			pusher: c.queue,
 			w:      w,
+			logger: log,
 		}
 		c.wg.Add(1)
 		go c.worker[i].run()
@@ -258,6 +296,12 @@ func New(w *Worker, workers uint8, ttl time.Duration) *Crawler {
 
 	go c.run()
 	return c
+}
+
+func (c *Crawler) printf(format string, args ...interface{}) {
+	if c.logger != nil {
+		c.logger.Printf(format, args...)
+	}
 }
 
 func (c *Crawler) Start(sm *url.URL, seeds ...*url.URL) error {
@@ -268,13 +312,13 @@ func (c *Crawler) Start(sm *url.URL, seeds ...*url.URL) error {
 		}
 		for _, seed := range sitemap.URLSet {
 			if err := c.queue.Push(&seed.Loc); err != nil {
-				log.Printf("enqueue sitemap %q: %v", seed, err)
+				c.printf("enqueue sitemap %q: %v", seed, err)
 			}
 		}
 	}
 	for _, seed := range seeds {
 		if err := c.queue.Push(seed); err != nil {
-			log.Printf("enqueue seed %q: %v", seed, err)
+			c.printf("enqueue seed %q: %v", seed, err)
 		}
 	}
 	return nil
@@ -283,7 +327,6 @@ func (c *Crawler) Start(sm *url.URL, seeds ...*url.URL) error {
 func (c *Crawler) dispatch(url *url.URL) {
 	worker := c.worker[c.i]
 	worker.work <- url
-	worker.done++
 	c.i++
 	if c.i >= len(c.worker) {
 		c.i = 0
@@ -296,7 +339,7 @@ func (c *Crawler) run() {
 	}
 	for _, w := range c.worker {
 		close(w.work)
-		log.Printf("worker#%.3d closed <done:%d closed:%v>",
+		c.printf("worker#%.3d closed <done:%d closed:%v>",
 			w.id, w.done, w.closed)
 	}
 	c.wg.Wait()

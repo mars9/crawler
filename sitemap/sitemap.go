@@ -1,3 +1,5 @@
+// Derived from https://raw.githubusercontent.com/fanyang01/crawler/master/sitemap/sitemap.go
+
 package sitemap
 
 import (
