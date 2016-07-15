@@ -227,18 +227,18 @@ func (w *worker) parse(parent *url.URL, node *html.Node, pusher Pusher) {
 				}
 
 				if !w.w.IsAccepted(url) { // allowed to enqueue
-					w.printf("worker#%.3d ERROR %q: rejected url", w.id, url)
+					w.printf("worker#%.3d url parser ERROR %q: rejected url", w.id, url)
 					continue
 				}
 				if err := pusher.Push(url); err != nil {
 					switch {
 					case err == ErrDuplicateURL:
 						// nothing
-						w.printf("worker#%.3d ERROR %q: %v", w.id, url, err)
+						w.printf("worker#%.3d url parser ERROR %q: %v", w.id, url, err)
 
 					case err == ErrEmptyURL:
 						// nothing
-						w.printf("worker#%.3d ERROR %q: %v", w.id, url, err)
+						w.printf("worker#%.3d url parser ERROR %q: %v", w.id, url, err)
 
 					case err == ErrLimitReached:
 						w.limitReached = true
@@ -339,10 +339,13 @@ func (c *Crawler) run() {
 	}
 	for _, w := range c.worker {
 		close(w.work)
-		c.printf("worker#%.3d closed <done:%d closed:%v>",
-			w.id, w.done, w.closed)
 	}
 	c.wg.Wait()
+
+	for _, w := range c.worker {
+		c.printf("worker#%.3d closed <done:%d closed:%v>", w.id, w.done, w.closed)
+	}
+
 	close(c.done)
 }
 
