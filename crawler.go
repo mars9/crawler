@@ -11,8 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mars9/crawler/sitemap"
-	"github.com/mars9/crawler/transform"
+	sm "github.com/mars9/crawler/sitemap"
 	"golang.org/x/net/html"
 )
 
@@ -98,7 +97,7 @@ type Worker struct {
 	IsAcceptedFunc func(*url.URL) bool
 
 	// ProcessFunc can be used to scrape data.
-	ProcessFunc func(*html.Node, []byte)
+	ProcessFunc func(*url.URL, *html.Node, []byte)
 
 	// Host defines the hostname to crawl. Worker is a single-host crawler.
 	Host *url.URL
@@ -124,6 +123,8 @@ type Worker struct {
 	//RobotsAgent string
 
 	Robots Robots
+
+	Concurrent int
 }
 
 func (w *Worker) Get(url *url.URL) (io.ReadCloser, error) {
@@ -140,9 +141,9 @@ func (w *Worker) IsAccepted(url *url.URL) bool {
 	return Accept(url, w.Host.Host, w.Reject, w.Accept)
 }
 
-func (w *Worker) Process(node *html.Node, data []byte) {
+func (w *Worker) Process(url *url.URL, node *html.Node, data []byte) {
 	if w.ProcessFunc != nil {
-		w.ProcessFunc(node, data)
+		w.ProcessFunc(url, node, data)
 	}
 }
 
@@ -151,7 +152,7 @@ type worker struct {
 	work   chan *url.URL
 	done   int
 	id     int
-	pusher Pusher
+	pusher pusher
 	w      *Worker
 	logger *log.Logger
 
@@ -198,10 +199,10 @@ func (w *worker) fetch(url *url.URL) error {
 	if err != nil {
 		return err
 	}
-	data, _, err = transform.Transform(data, nil)
-	if err != nil {
-		return err
-	}
+	//data, _, err = transform.Transform(data, nil)
+	//if err != nil {
+	//	return err
+	//}
 
 	node, err := parseHTML(data)
 	if err != nil {
@@ -209,11 +210,11 @@ func (w *worker) fetch(url *url.URL) error {
 	}
 
 	w.parse(url, node, w.pusher)
-	w.w.Process(node, data)
+	w.w.Process(url, node, data)
 	return nil
 }
 
-func (w *worker) parse(parent *url.URL, node *html.Node, pusher Pusher) {
+func (w *worker) parse(parent *url.URL, node *html.Node, pusher pusher) {
 	if w.limitReached || w.closed {
 		return
 	}
@@ -271,7 +272,12 @@ type Crawler struct {
 	logger *log.Logger
 }
 
-func New(w *Worker, n uint8, ttl time.Duration, log *log.Logger) *Crawler {
+func New(w *Worker, ttl time.Duration, log *log.Logger) *Crawler {
+	n := w.Concurrent
+	if n <= 0 {
+		n = 8
+	}
+
 	c := &Crawler{
 		queue:  NewQueue(w.MaxEnqueue, ttl),
 		worker: make([]*worker, n),
@@ -281,7 +287,7 @@ func New(w *Worker, n uint8, ttl time.Duration, log *log.Logger) *Crawler {
 		logger: log,
 	}
 
-	for i := uint8(0); i < n; i++ {
+	for i := 0; i < n; i++ {
 		c.worker[i] = &worker{
 			work:   make(chan *url.URL), // TODO: buffered channel
 			wg:     c.wg,
@@ -304,13 +310,13 @@ func (c *Crawler) printf(format string, args ...interface{}) {
 	}
 }
 
-func (c *Crawler) Start(sm *url.URL, seeds ...*url.URL) error {
-	if sm != nil {
-		sitemap, err := sitemap.Get(sm.String(), c.w.UserAgent)
+func (c *Crawler) Start(sitemap *url.URL, seeds ...*url.URL) error {
+	if sitemap != nil {
+		s, err := sm.Get(sitemap.String(), c.w.UserAgent)
 		if err != nil {
 			return err
 		}
-		for _, seed := range sitemap.URLSet {
+		for _, seed := range s.URLSet {
 			if err := c.queue.Push(&seed.Loc); err != nil {
 				c.printf("enqueue sitemap %q: %v", seed, err)
 			}
@@ -342,9 +348,12 @@ func (c *Crawler) run() {
 	}
 	c.wg.Wait()
 
+	var done int
 	for _, w := range c.worker {
 		c.printf("worker#%.3d closed <done:%d closed:%v>", w.id, w.done, w.closed)
+		done += w.done
 	}
+	c.printf("crawler visited %d URLs\n", done)
 
 	close(c.done)
 }

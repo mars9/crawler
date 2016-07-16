@@ -22,7 +22,8 @@ func newTestWorker() *Worker {
 			data := "<html><head></head><body></body></html>"
 			return ioutil.NopCloser(strings.NewReader(data)), nil
 		},
-		Host: host,
+		Host:       host,
+		Concurrent: 8,
 	}
 }
 
@@ -59,7 +60,7 @@ func TestWorkerClose(t *testing.T) {
 func TestCrawlerClose(t *testing.T) {
 	t.Parallel()
 
-	c := New(newTestWorker(), 8, time.Millisecond*2, nil)
+	c := New(newTestWorker(), time.Millisecond*2, nil)
 	time.Sleep(time.Millisecond * 5)
 	<-c.Done()
 
@@ -72,6 +73,20 @@ func TestCrawlerClose(t *testing.T) {
 	u, _ := url.Parse("http://example.com")
 	if err := c.queue.Push(u); err != ErrQueueClosed {
 		t.Fatalf("crawler: expected ErrQueueClosed, got %v", err)
+	}
+}
+
+func TestCrawlerManualClose(t *testing.T) {
+	t.Parallel()
+
+	c := New(newTestWorker(), time.Hour*2, nil)
+	if err := c.Close(); err != nil {
+		t.Fatalf("crawler: cannot close: %v", err)
+	}
+
+	_, ok := <-c.Done()
+	if ok != false {
+		t.Fatalf("crawler: unexpected open done channel")
 	}
 }
 

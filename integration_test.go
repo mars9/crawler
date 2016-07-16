@@ -44,7 +44,7 @@ func TestBasicCrawler(t *testing.T) {
 	w := &Worker{}
 	w.Host, _ = url.Parse(s.URL)
 
-	c := New(w, 8, time.Millisecond*20, nil)
+	c := New(w, time.Millisecond*20, nil)
 	c.Start(nil, w.Host)
 
 	<-c.Done()

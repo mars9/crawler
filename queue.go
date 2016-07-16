@@ -20,7 +20,7 @@ const (
 	ErrLimitReached = Error("limit reached")
 )
 
-type Pusher interface {
+type pusher interface {
 	Push(*url.URL) error
 	Close() error
 }
